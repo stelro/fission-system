@@ -39,6 +39,7 @@ set(SOURCES
   src/renderer/vulkan_base.cc
   src/core/logger.cc
   src/core/fission.cc
+  src/core/settings.cc
   )
 set(TESTFILES
   tests/main.cc

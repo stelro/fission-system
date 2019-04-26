@@ -24,4 +24,4 @@
 -Wformat=2
 -std=c++17
 -I/home/stel/source/fission/external/Catch2/single_include
--std=gnu++11
+-std=gnu++17

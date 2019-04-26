@@ -9,14 +9,18 @@
 
 #define VULKAN_BASE_H
 
+#include <memory>
+
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
 namespace fn {
 
+  class Settings;
+
   class VulkanBase {
   public:
-    VulkanBase() noexcept;
+    explicit VulkanBase(std::shared_ptr<Settings> settings) noexcept;
     ~VulkanBase() noexcept;
 
     //TODO: Disable Copy
@@ -27,11 +31,15 @@ namespace fn {
   private:
 
     GLFWwindow* m_window;
+    std::shared_ptr<Settings> m_settings;
+    VkInstance m_instance;
 
     void initWindow() noexcept;
     void initVulkan() noexcept;
     void mainLoop() noexcept;
     void cleanUp() noexcept;
+
+    void createInstance() noexcept;
 
   };
 

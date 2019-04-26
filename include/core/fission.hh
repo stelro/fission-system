@@ -9,9 +9,21 @@
 
 #define FISSION_H
 
+#include "vulkan/vulkan.h"
+#include "core/logger.hh"
+
+#define VK_CHECK_RESULT(f) \
+{\
+  VkResult res = (f);\
+  if ( res != VK_SUCCESS ) \
+  { \
+    fn::log::fatal("VkResult is \" %s \" in %s at line %d", \
+                   fn::VulkanErrorString(res).c_str(), __FILE__, __LINE__); \
+  }\
+}\
+
 namespace fn {
-  
+  std::string VulkanErrorString(VkResult errorCode) noexcept ;
 }
 
 #endif
-
