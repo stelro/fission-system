@@ -21,10 +21,12 @@
 namespace fn {
 
   struct QueueFamilyIndices {
+
     std::optional<uint32_t> graphicsFamily;
+    std::optional<uint32_t> presentFamily;
 
     bool isComplete() {
-      return graphicsFamily.has_value();
+      return graphicsFamily.has_value() && presentFamily.has_value();
     }
   };
 
@@ -60,6 +62,7 @@ namespace fn {
     VkInstance m_instance;
 
     VkDebugUtilsMessengerEXT m_debugMessenger;
+    VkSurfaceKHR m_surface;
 
     bool m_enableValidationLayers;
 
@@ -69,8 +72,9 @@ namespace fn {
     // Logical Device, actually just a handle to
     // physical Device
     VkDevice m_device;
-
     VkQueue m_graphicsQueue;
+
+    VkQueue m_presentQueue;
 
     const std::vector<const char*> m_validationLayers = {
       "VK_LAYER_LUNARG_standard_validation"
@@ -83,6 +87,7 @@ namespace fn {
 
     void createInstance() noexcept;
     void setupDebugMessenger() noexcept;
+    void createSurface() noexcept;
 
     void pickPhysicalDevice() noexcept;
     void createLogicalDevice() noexcept;

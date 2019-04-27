@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <set>
 
 namespace fn {
 
@@ -19,7 +20,7 @@ namespace fn {
   // the load of VkCreateDebugUtilsMessengerEXT function
   // because this function it is not loaded automatically
   VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT*
-  pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
+                                        pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
 
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance,
                                                                            "vkCreateDebugUtilsMessengerEXT");
@@ -33,10 +34,10 @@ namespace fn {
   }
 
   void DestroyDebugUtilsMessengerEXT(VkInstance instnace, VkDebugUtilsMessengerEXT debugMessenger,
-    const VkAllocationCallbacks* pAllocator) {
+                                     const VkAllocationCallbacks* pAllocator) {
 
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instnace,
-      "vkDestroyDebugUtilsMessengerEXT");
+                                                                            "vkDestroyDebugUtilsMessengerEXT");
 
     if ( func != nullptr ) {
       func(instnace, debugMessenger, pAllocator);
@@ -81,6 +82,7 @@ namespace fn {
 
     createInstance();
     setupDebugMessenger();
+    createSurface();
     pickPhysicalDevice();
     createLogicalDevice();
 
@@ -101,6 +103,7 @@ namespace fn {
       DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
     }
 
+    vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
     vkDestroyInstance(m_instance, nullptr);
     glfwDestroyWindow(m_window);
     glfwTerminate();
@@ -136,7 +139,7 @@ namespace fn {
     }
 
     VK_CHECK_RESULT(vkCreateInstance(&createInfo, nullptr, &m_instance));
- }
+  }
 
   bool VulkanBase::checkValidationLayerSupport() const noexcept {
     uint32_t layerCount;
@@ -220,6 +223,12 @@ namespace fn {
       log::fatal("Failed to find a suitable GPU!");
     }
 
+    /// Get information about the physical device
+    VkPhysicalDeviceProperties deviceProperites = {};
+    vkGetPhysicalDeviceProperties(m_physicalDevice, &deviceProperites);
+
+    log::info("Picked physical device: %s\n", deviceProperites.deviceName);
+
   }
 
   bool VulkanBase::isDeviceSuitable(VkPhysicalDevice device) const noexcept {
@@ -244,6 +253,13 @@ namespace fn {
         indices.graphicsFamily = i;
       }
 
+      VkBool32 presentSupport = false;
+      vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_surface, &presentSupport);
+
+      if (queueFamily.queueCount > 0 && presentSupport) {
+        indices.presentFamily = i;
+      }
+
       if (indices.isComplete()) {
         break;
       }
@@ -258,20 +274,29 @@ namespace fn {
 
     QueueFamilyIndices indices = findQueueFamilies(m_physicalDevice);
 
-    VkDeviceQueueCreateInfo queueCreateInfo = {};
-    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.value();
-    queueCreateInfo.queueCount = 1;
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    std::set<uint32_t> uniqueQueueFamilies = {
+      indices.graphicsFamily.value(),
+      indices.presentFamily.value()
+    };
 
     float queuePriority = 1.0f;
-    queueCreateInfo.pQueuePriorities = &queuePriority;
+    for (uint32_t queueFamily : uniqueQueueFamilies ) {
+
+      VkDeviceQueueCreateInfo queueCreateInfo = {};
+      queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+      queueCreateInfo.queueFamilyIndex = queueFamily;
+      queueCreateInfo.queueCount = 1;
+      queueCreateInfo.pQueuePriorities = &queuePriority;
+      queueCreateInfos.push_back(queueCreateInfo);
+    }
 
     VkPhysicalDeviceFeatures deviceFeatures = {};
 
     VkDeviceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    createInfo.pQueueCreateInfos = &queueCreateInfo;
-    createInfo.queueCreateInfoCount = 1;
+    createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+    createInfo.pQueueCreateInfos = queueCreateInfos.data();
 
     createInfo.pEnabledFeatures = &deviceFeatures;
     createInfo.enabledExtensionCount = 0;
@@ -284,9 +309,15 @@ namespace fn {
     }
 
     VK_CHECK_RESULT(vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device));
-
-
     vkGetDeviceQueue(m_device, indices.graphicsFamily.value(), 0, &m_graphicsQueue);
+    vkGetDeviceQueue(m_device, indices.presentFamily.value(), 0, &m_presentQueue);
+
+  }
+
+  void VulkanBase::createSurface() noexcept {
+
+    VK_CHECK_RESULT(glfwCreateWindowSurface(m_instance, m_window, nullptr, &m_surface));
+
 
   }
 
