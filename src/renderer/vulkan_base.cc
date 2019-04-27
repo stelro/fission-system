@@ -82,6 +82,7 @@ namespace fn {
     createInstance();
     setupDebugMessenger();
     pickPhysicalDevice();
+    createLogicalDevice();
 
   }
 
@@ -93,6 +94,8 @@ namespace fn {
   }
 
   void VulkanBase::cleanUp() noexcept {
+
+    vkDestroyDevice(m_device, nullptr);
 
     if (m_enableValidationLayers) {
       DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
@@ -249,6 +252,42 @@ namespace fn {
     }
 
     return indices;
+  }
+
+  void VulkanBase::createLogicalDevice() noexcept {
+
+    QueueFamilyIndices indices = findQueueFamilies(m_physicalDevice);
+
+    VkDeviceQueueCreateInfo queueCreateInfo = {};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.value();
+    queueCreateInfo.queueCount = 1;
+
+    float queuePriority = 1.0f;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+
+    VkPhysicalDeviceFeatures deviceFeatures = {};
+
+    VkDeviceCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.pQueueCreateInfos = &queueCreateInfo;
+    createInfo.queueCreateInfoCount = 1;
+
+    createInfo.pEnabledFeatures = &deviceFeatures;
+    createInfo.enabledExtensionCount = 0;
+
+    if ( m_enableValidationLayers ) {
+      createInfo.enabledLayerCount = static_cast<uint32_t>(m_validationLayers.size());
+      createInfo.ppEnabledLayerNames = m_validationLayers.data();
+    } else {
+      createInfo.enabledLayerCount = 0;
+    }
+
+    VK_CHECK_RESULT(vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device));
+
+
+    vkGetDeviceQueue(m_device, indices.graphicsFamily.value(), 0, &m_graphicsQueue);
+
   }
 
 } // namespace fn

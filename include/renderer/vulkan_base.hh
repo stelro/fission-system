@@ -63,8 +63,14 @@ namespace fn {
 
     bool m_enableValidationLayers;
 
+    // Physical Device - GPU -
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
 
+    // Logical Device, actually just a handle to
+    // physical Device
+    VkDevice m_device;
+
+    VkQueue m_graphicsQueue;
 
     const std::vector<const char*> m_validationLayers = {
       "VK_LAYER_LUNARG_standard_validation"
@@ -79,6 +85,7 @@ namespace fn {
     void setupDebugMessenger() noexcept;
 
     void pickPhysicalDevice() noexcept;
+    void createLogicalDevice() noexcept;
 
     //@Fix maybe move this function outside class?
     bool isDeviceSuitable(VkPhysicalDevice device) const noexcept;
