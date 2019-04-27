@@ -81,6 +81,7 @@ namespace fn {
 
     createInstance();
     setupDebugMessenger();
+    pickPhysicalDevice();
 
   }
 
@@ -191,6 +192,63 @@ namespace fn {
     }
 
 
+  }
+
+  void VulkanBase::pickPhysicalDevice() noexcept {
+
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(m_instance, &deviceCount, nullptr);
+
+    if ( deviceCount == 0 ) {
+      log::fatal("Faild to find GPUs with Vulkan Support");
+    }
+
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(m_instance, &deviceCount, devices.data());
+
+    for (const auto& device : devices) {
+      if (isDeviceSuitable(device)) {
+        m_physicalDevice = device;
+        break;
+      }
+    }
+
+    if (m_physicalDevice == VK_NULL_HANDLE) {
+      log::fatal("Failed to find a suitable GPU!");
+    }
+
+  }
+
+  bool VulkanBase::isDeviceSuitable(VkPhysicalDevice device) const noexcept {
+
+    QueueFamilyIndices indices = findQueueFamilies(device);
+    return indices.isComplete();
+  }
+
+  QueueFamilyIndices VulkanBase::findQueueFamilies(VkPhysicalDevice device) const noexcept {
+
+    QueueFamilyIndices indices;
+
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+    int i = 0;
+    for (const auto& queueFamily : queueFamilies) {
+      if ( queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT ) {
+        indices.graphicsFamily = i;
+      }
+
+      if (indices.isComplete()) {
+        break;
+      }
+
+      i++;
+    }
+
+    return indices;
   }
 
 } // namespace fn

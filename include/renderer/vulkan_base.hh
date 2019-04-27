@@ -11,12 +11,22 @@
 
 #include <memory>
 #include <vector>
+#include <optional>
+
 #include "core/logger.hh"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
 namespace fn {
+
+  struct QueueFamilyIndices {
+    std::optional<uint32_t> graphicsFamily;
+
+    bool isComplete() {
+      return graphicsFamily.has_value();
+    }
+  };
 
   class Settings;
 
@@ -53,6 +63,8 @@ namespace fn {
 
     bool m_enableValidationLayers;
 
+    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
+
 
     const std::vector<const char*> m_validationLayers = {
       "VK_LAYER_LUNARG_standard_validation"
@@ -65,6 +77,13 @@ namespace fn {
 
     void createInstance() noexcept;
     void setupDebugMessenger() noexcept;
+
+    void pickPhysicalDevice() noexcept;
+
+    //@Fix maybe move this function outside class?
+    bool isDeviceSuitable(VkPhysicalDevice device) const noexcept;
+
+    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const noexcept;
 
     bool checkValidationLayerSupport() const noexcept;
     std::vector<const char*> getRequiredExtensions() const noexcept;
