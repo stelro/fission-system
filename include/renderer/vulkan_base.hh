@@ -10,6 +10,8 @@
 #define VULKAN_BASE_H
 
 #include <memory>
+#include <vector>
+#include "core/logger.hh"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -28,11 +30,33 @@ namespace fn {
 
     void run() noexcept;
 
+    static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+      VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+      VkDebugUtilsMessageTypeFlagsEXT messageType,
+      const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+      void* pUserData) {
+
+
+      log::error("Validation layer: %s \n", pCallbackData->pMessage);
+
+      return VK_FALSE;
+    }
+
+
   private:
 
     GLFWwindow* m_window;
     std::shared_ptr<Settings> m_settings;
     VkInstance m_instance;
+
+    VkDebugUtilsMessengerEXT m_debugMessenger;
+
+    bool m_enableValidationLayers;
+
+
+    const std::vector<const char*> m_validationLayers = {
+      "VK_LAYER_LUNARG_standard_validation"
+    };
 
     void initWindow() noexcept;
     void initVulkan() noexcept;
@@ -40,9 +64,12 @@ namespace fn {
     void cleanUp() noexcept;
 
     void createInstance() noexcept;
+    void setupDebugMessenger() noexcept;
+
+    bool checkValidationLayerSupport() const noexcept;
+    std::vector<const char*> getRequiredExtensions() const noexcept;
 
   };
-
 } //fn
 
 #endif
