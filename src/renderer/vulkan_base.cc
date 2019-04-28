@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <fstream>
 #include <set>
 
 namespace fn {
@@ -44,6 +45,24 @@ namespace fn {
     if (func != nullptr) {
       func(instnace, debugMessenger, pAllocator);
     }
+  }
+
+// TODO: move this function to seperate file
+  static std::vector<char> readFile(const std::string &filename) {
+    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open()) {
+      log::fatal("Faild to open file: %s\n", filename.c_str());
+    }
+
+    auto fileSize = static_cast<size_t>(file.tellg());
+    std::vector<char> buffer(fileSize);
+
+    file.seekg(0);
+    file.read(buffer.data(), fileSize);
+    file.close();
+
+    return buffer;
   }
 
   VulkanBase::VulkanBase(std::shared_ptr<Settings> settings) noexcept
@@ -86,6 +105,7 @@ namespace fn {
     createLogicalDevice();
     createSwapChain();
     createImageViews();
+    createGraphicsPipeline();
   }
 
   void VulkanBase::mainLoop() noexcept {
@@ -96,6 +116,8 @@ namespace fn {
   }
 
   void VulkanBase::cleanUp() noexcept {
+
+    vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
 
     for (auto imageView : m_swapChainImagesViews) {
       vkDestroyImageView(m_device, imageView, nullptr);
@@ -450,7 +472,7 @@ namespace fn {
 
     VkPresentModeKHR bestMode = VK_PRESENT_MODE_FIFO_KHR;
 
-    for (const auto& availablePresentMode : availablePresentModes) {
+    for (const auto &availablePresentMode : availablePresentModes) {
       if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
         return availablePresentMode;
       } else if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
@@ -459,23 +481,27 @@ namespace fn {
     }
 
     return bestMode;
-
   }
 
-  VkExtent2D VulkanBase::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) const noexcept {
+  VkExtent2D
+  VulkanBase::chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities) const
+    noexcept {
 
     // The range of possible resolutions is defined in the
     // VkSurfaceCapabilitiesKHR structure.
 
-    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+    if (capabilities.currentExtent.width !=
+        std::numeric_limits<uint32_t>::max()) {
       return capabilities.currentExtent;
     } else {
-      VkExtent2D actualExtent = { m_settings->getWidth(), m_settings->getHeight() };
+      VkExtent2D actualExtent = {m_settings->getWidth(), m_settings->getHeight()};
 
-      actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width,
-                                      capabilities.maxImageExtent.width);
-      actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height,
-                                       capabilities.maxImageExtent.height);
+      actualExtent.width =
+        std::clamp(actualExtent.width, capabilities.minImageExtent.width,
+                   capabilities.maxImageExtent.width);
+      actualExtent.height =
+        std::clamp(actualExtent.height, capabilities.minImageExtent.height,
+                   capabilities.maxImageExtent.height);
       return actualExtent;
     }
   }
@@ -497,7 +523,8 @@ namespace fn {
     // than the minimum.
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
 
-    if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
+    if (swapChainSupport.capabilities.maxImageCount > 0 &&
+        imageCount > swapChainSupport.capabilities.maxImageCount) {
       imageCount = swapChainSupport.capabilities.maxImageCount;
     }
 
@@ -512,39 +539,39 @@ namespace fn {
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     auto indices = findQueueFamilies(m_physicalDevice);
-    uint32_t queueFamilyIndices[] = {
-      indices.graphicsFamily.value(),
-      indices.presentFamily.value()
-    };
+    uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(),
+                                     indices.presentFamily.value()};
 
-    if ( indices.graphicsFamily != indices.presentFamily ) {
+    if (indices.graphicsFamily != indices.presentFamily) {
       createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
       createInfo.queueFamilyIndexCount = 2;
       createInfo.pQueueFamilyIndices = queueFamilyIndices;
     } else {
       createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      createInfo.queueFamilyIndexCount = 0; // optional
+      createInfo.queueFamilyIndexCount = 0;     // optional
       createInfo.pQueueFamilyIndices = nullptr; // optional
     }
 
     createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     createInfo.presentMode = presentMode;
-    createInfo.clipped = VK_TRUE; // We don't care about the color of pixels that are obscured
+    createInfo.clipped =
+      VK_TRUE; // We don't care about the color of pixels that are obscured
 
     // It is possible that the current swap chain will become invaled or
     // unoptimized, e.g becase of w WINDOW RESIZE,.
-    // In that case, the swap chain needs to be recreated from scratch and the refrence to
-    // the old one must be specified in the field below.
+    // In that case, the swap chain needs to be recreated from scratch and the
+    // refrence to the old one must be specified in the field below.
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
     // Create the actuall swap chain
-    VK_CHECK_RESULT(vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &m_swapChain));
+    VK_CHECK_RESULT(
+      vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &m_swapChain));
 
     vkGetSwapchainImagesKHR(m_device, m_swapChain, &imageCount, nullptr);
     m_swapChainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(m_device, m_swapChain, &imageCount, m_swapChainImages.data());
-
+    vkGetSwapchainImagesKHR(m_device, m_swapChain, &imageCount,
+                            m_swapChainImages.data());
   }
 
   void VulkanBase::createImageViews() noexcept {
@@ -572,14 +599,171 @@ namespace fn {
       // and which part of the image should be accessed
       createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
       createInfo.subresourceRange.baseMipLevel = 0;
-      createInfo.subresourceRange.levelCount  = 1;
+      createInfo.subresourceRange.levelCount = 1;
       createInfo.subresourceRange.baseArrayLayer = 0;
       createInfo.subresourceRange.layerCount = 1;
 
-      VK_CHECK_RESULT(vkCreateImageView(m_device, &createInfo, nullptr, &m_swapChainImagesViews[i]));
-
+      VK_CHECK_RESULT(vkCreateImageView(m_device, &createInfo, nullptr,
+                                        &m_swapChainImagesViews[i]));
     }
+  }
 
+  void VulkanBase::createGraphicsPipeline() noexcept {
+    // @stel -> find a better way to handle this ?
+    // maybe pass a factory object to load shaders at compile time?
+    auto vertShaderCode = readFile("../shaders/texture.vert.spv");
+    auto fragShaderCode = readFile("../shaders/texture.frag.spv");
+
+    auto vertexShaderModule = createShaderModule(vertShaderCode);
+    auto fragmentShaderModule = createShaderModule(fragShaderCode);
+
+    VkPipelineShaderStageCreateInfo vertexShaderStageInfo = {};
+    vertexShaderStageInfo.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertexShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertexShaderStageInfo.module = vertexShaderModule;
+    vertexShaderStageInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo = {};
+    fragShaderStageInfo.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragShaderStageInfo.module = fragmentShaderModule;
+    fragShaderStageInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo shaderStages[] = {vertexShaderStageInfo,
+                                                      fragShaderStageInfo};
+
+    /// The VkPipelineVertexInputStateCreateInfo describes the format of the
+    /// vertex data that will be passed to the vertex shader.
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
+    vertexInputInfo.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.vertexBindingDescriptionCount = 0;
+    vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
+    vertexInputInfo.vertexAttributeDescriptionCount = 0;
+    vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
+
+    /// the VkPipelineInputAssemblyStateCreateInfo struct describles 2 things:
+    /// first what kind of geometry will be drawn from the verticies and if
+    /// primatives restart should be enabled.
+    /**
+       VK_PRIMITIVE_TOPOLOGY_POINT_LIST: points from verticies
+       VK_PRIMITIVE_TOPOLOGY_LINE_LIST: line from every 2 vertices without reouse
+       VK_PRIMITIVE_TOPOLOGY_LINE_STRIN: the end vertex of every line is used as
+       start vertx for the next line VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST: triangle
+       from every 3 verticies without reouse VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP:
+       the second and third vertex of every triangle are used as first two
+       vertices of the next triangle
+    */
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
+    inputAssembly.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+    /// A viewport basically describes the region of the framebuffer that the output will
+    /// be rendered to!
+    VkViewport viewport = {};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(m_swapChainExtent.width);
+    viewport.height = static_cast<float>(m_swapChainExtent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor = {};
+    scissor.offset = {0, 0};
+    scissor.extent = m_swapChainExtent;
+
+    VkPipelineViewportStateCreateInfo viewportState = {};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.pViewports = &viewport;
+    viewportState.scissorCount = 1;
+    viewportState.pScissors = &scissor;
+
+    /// Rasterizer
+    /// the rasterizer takes the geometry that is shaped by the vertices from the vertex
+    /// shader and turns it into fragments to be colored bu the fragment shader.
+    /// it also performs depth testing and face culling and the scissor test.
+    VkPipelineRasterizationStateCreateInfo rasterizer = {};
+    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.depthClampEnable = VK_FALSE;
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+
+    /// The polygonMode determines how fragments are generated for geometry.
+    /**
+       The following modes are available:
+       VK_POLYGON_MODE_FILL: fill the area of the polygon with fragments
+       VK_POLYGON_MODE_LINE: polygon edges are drawn as lines
+       VK_POLYGON_MODE_POINT: polygon vertices are drawn as points
+
+       ******
+       Using any mode other that fill requires enabling a GPU special feature:
+       rasterizer.lineWidth = 1.0f;
+       *****
+     */
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.lineWidth = 1.0f;
+    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.depthBiasEnable = VK_FALSE;
+    rasterizer.depthBiasConstantFactor = 0.0f; // Optional
+    rasterizer.depthBiasClamp = 0.0f; // Optional
+    rasterizer.depthBiasSlopeFactor = 0.0f; // Optonal
+
+    /// the VkPipelineMultisamplingStateCreateInfo struct configures multi-sampling,
+    /// which is one of the ways to perform anti-aliasig.
+    VkPipelineMultisampleStateCreateInfo multisampling = {};
+    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.sampleShadingEnable = VK_FALSE;
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisampling.minSampleShading = 1.0f; // Optional
+    multisampling.pSampleMask = nullptr; // Optional
+    multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
+    multisampling.alphaToOneEnable = VK_FALSE; // Optional
+
+    VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.blendEnable = VK_FALSE;
+
+    VkPipelineColorBlendStateCreateInfo colorBlending = {};
+    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlending.logicOpEnable = VK_FALSE;
+    colorBlending.logicOp = VK_LOGIC_OP_COPY;
+    colorBlending.attachmentCount = 1;
+    colorBlending.pAttachments = &colorBlendAttachment;
+    colorBlending.blendConstants[0] = 0.0f;
+    colorBlending.blendConstants[1] = 0.0f;
+    colorBlending.blendConstants[2] = 0.0f;
+    colorBlending.blendConstants[3] = 0.0f;
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 0; // Optional
+    pipelineLayoutInfo.pSetLayouts = nullptr; // Optional
+    pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
+    pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+
+    VK_CHECK_RESULT(vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout));
+   
+    vkDestroyShaderModule(m_device, fragmentShaderModule, nullptr);
+    vkDestroyShaderModule(m_device, vertexShaderModule, nullptr);
+  }
+
+  VkShaderModule
+  VulkanBase::createShaderModule(const std::vector<char> &code) const noexcept {
+    VkShaderModuleCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.codeSize = code.size();
+    createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
+
+    VkShaderModule shaderModule;
+    VK_CHECK_RESULT(
+      vkCreateShaderModule(m_device, &createInfo, nullptr, &shaderModule));
+
+    return shaderModule;
   }
 
 } // namespace fn

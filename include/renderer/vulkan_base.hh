@@ -96,6 +96,8 @@ namespace fn {
     VkFormat m_swapChainImageFormat;
     VkExtent2D m_swapChainExtent;
 
+    VkPipelineLayout m_pipelineLayout;
+
     const std::vector<const char*> m_validationLayers = {
       "VK_LAYER_LUNARG_standard_validation"
     };
@@ -118,7 +120,13 @@ namespace fn {
     void createSwapChain() noexcept;
     void createImageViews() noexcept;
 
-    //@Fix maybe move this function outside class?
+    void createGraphicsPipeline() noexcept;
+
+    ///@Fix -> maybe move this function out of class.
+    /// it is not uses any class memebers anyways
+    VkShaderModule createShaderModule(const std::vector<char>& code) const noexcept;
+
+    ///@Fix -> maybe move this function outside class?
     bool isDeviceSuitable(VkPhysicalDevice device) const noexcept;
 
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const noexcept;
