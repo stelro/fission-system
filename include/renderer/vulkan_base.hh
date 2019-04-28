@@ -30,6 +30,12 @@ namespace fn {
     }
   };
 
+  struct SwapChainSupportDetails {
+    VkSurfaceCapabilitiesKHR capabilities;
+    std::vector<VkSurfaceFormatKHR> formats;
+    std::vector<VkPresentModeKHR> presentModes;
+  };
+
   class Settings;
 
   class VulkanBase {
@@ -62,6 +68,8 @@ namespace fn {
     VkInstance m_instance;
 
     VkDebugUtilsMessengerEXT m_debugMessenger;
+
+    // @fix maybe move surface to it's own class?
     VkSurfaceKHR m_surface;
 
     bool m_enableValidationLayers;
@@ -73,11 +81,22 @@ namespace fn {
     // physical Device
     VkDevice m_device;
     VkQueue m_graphicsQueue;
-
     VkQueue m_presentQueue;
+    VkSwapchainKHR m_swapChain;
+
+    // Handles of the VkImages that are reference inside the
+    // the swap chain
+    std::vector<VkImage> m_swapChainImages;
+
+    VkFormat m_swapChainImageFormat;
+    VkExtent2D m_swapChainExtent;
 
     const std::vector<const char*> m_validationLayers = {
       "VK_LAYER_LUNARG_standard_validation"
+    };
+
+    const std::vector<const char*> m_deviceExtensions = {
+      VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
 
     void initWindow() noexcept;
@@ -91,14 +110,29 @@ namespace fn {
 
     void pickPhysicalDevice() noexcept;
     void createLogicalDevice() noexcept;
+    void createSwapChain() noexcept;
 
     //@Fix maybe move this function outside class?
     bool isDeviceSuitable(VkPhysicalDevice device) const noexcept;
 
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const noexcept;
+    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) const noexcept;
+
+    // Surface format, represents the color depth, e.g color channels and
+    // types, also color space
+    VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) const noexcept;
+
+    // The presenation mode is arguably the most important setting for the swap chain,
+    // because it represents the actual conditions for showing images to the screen
+    VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) const noexcept;
+
+    // The swap extent is the resolution of images in the swap chain
+    // and its *almost* always equal to the window we are drawing in
+    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) const noexcept;
 
     bool checkValidationLayerSupport() const noexcept;
     std::vector<const char*> getRequiredExtensions() const noexcept;
+    bool checkDeviceextensionsupport(VkPhysicalDevice device) const noexcept;
 
   };
 } //fn
