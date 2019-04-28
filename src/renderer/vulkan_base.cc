@@ -92,12 +92,11 @@ namespace fn {
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     m_window =
-      glfwCreateWindow(m_settings->getWidth(), m_settings->getHeight(),
+      glfwCreateWindow(static_cast<int>(m_settings->getWidth()), static_cast<int>(m_settings->getHeight()),
                        m_settings->getEngineName().c_str(), nullptr, nullptr);
   }
 
   void VulkanBase::initVulkan() noexcept {
-
     createInstance();
     setupDebugMessenger();
     createSurface();
@@ -118,6 +117,7 @@ namespace fn {
 
   void VulkanBase::cleanUp() noexcept {
 
+    vkDestroyPipeline(m_device, m_graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
     vkDestroyRenderPass(m_device, m_renderPass, nullptr);
 
@@ -750,6 +750,23 @@ namespace fn {
 
     VK_CHECK_RESULT(vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout));
 
+    VkGraphicsPipelineCreateInfo pipelineInfo = {};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.layout = m_pipelineLayout;
+    pipelineInfo.renderPass = m_renderPass;
+    pipelineInfo.subpass = 0;
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+    VK_CHECK_RESULT(vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline));
+   
     vkDestroyShaderModule(m_device, fragmentShaderModule, nullptr);
     vkDestroyShaderModule(m_device, vertexShaderModule, nullptr);
   }
@@ -798,8 +815,6 @@ namespace fn {
     renderPassInfo.pSubpasses = &subpass;
 
     VK_CHECK_RESULT(vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_renderPass));
-
-
   }
 
 

@@ -99,6 +99,8 @@ namespace fn {
     VkRenderPass m_renderPass;
     VkPipelineLayout m_pipelineLayout;
 
+    VkPipeline m_graphicsPipeline;
+
     const std::vector<const char*> m_validationLayers = {
       "VK_LAYER_LUNARG_standard_validation"
     };
