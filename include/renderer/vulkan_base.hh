@@ -96,6 +96,7 @@ namespace fn {
     VkFormat m_swapChainImageFormat;
     VkExtent2D m_swapChainExtent;
 
+    VkRenderPass m_renderPass;
     VkPipelineLayout m_pipelineLayout;
 
     const std::vector<const char*> m_validationLayers = {
@@ -120,6 +121,7 @@ namespace fn {
     void createSwapChain() noexcept;
     void createImageViews() noexcept;
 
+    void createRenderPass() noexcept;
     void createGraphicsPipeline() noexcept;
 
     ///@Fix -> maybe move this function out of class.
