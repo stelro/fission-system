@@ -88,6 +88,11 @@ namespace fn {
     // the swap chain
     std::vector<VkImage> m_swapChainImages;
 
+    // to use any VkImage, including those in the swap chain, in the rendering pipeline
+    // we have to create a VkImageView object. An image view is quite literally a view into
+    // a image. It describes how to access the image and which part of the image to access
+    std::vector<VkImageView> m_swapChainImagesViews;
+
     VkFormat m_swapChainImageFormat;
     VkExtent2D m_swapChainExtent;
 
@@ -111,6 +116,7 @@ namespace fn {
     void pickPhysicalDevice() noexcept;
     void createLogicalDevice() noexcept;
     void createSwapChain() noexcept;
+    void createImageViews() noexcept;
 
     //@Fix maybe move this function outside class?
     bool isDeviceSuitable(VkPhysicalDevice device) const noexcept;
