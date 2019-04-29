@@ -10,8 +10,8 @@
 #define VULKAN_BASE_H
 
 #include <memory>
-#include <vector>
 #include <optional>
+#include <vector>
 
 #include "core/logger.hh"
 
@@ -43,27 +43,24 @@ namespace fn {
     explicit VulkanBase(std::shared_ptr<Settings> settings) noexcept;
     ~VulkanBase() noexcept;
 
-    //TODO: Disable Copy
-    //TODO: Make it movable object
+    // TODO: Disable Copy
+    // TODO: Make it movable object
 
     void run() noexcept;
 
-    static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-      VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-      VkDebugUtilsMessageTypeFlagsEXT messageType,
-      const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-      void* pUserData) {
-
+    static VKAPI_ATTR VkBool32 VKAPI_CALL
+    debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                  VkDebugUtilsMessageTypeFlagsEXT messageType,
+                  const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+                  void *pUserData) {
 
       log::error("Validation layer: %s \n", pCallbackData->pMessage);
 
       return VK_FALSE;
     }
 
-
   private:
-
-    GLFWwindow* m_window;
+    GLFWwindow *m_window;
     std::shared_ptr<Settings> m_settings;
     VkInstance m_instance;
 
@@ -88,11 +85,12 @@ namespace fn {
     // the swap chain
     std::vector<VkImage> m_swapChainImages;
 
-    // to use any VkImage, including those in the swap chain, in the rendering pipeline
-    // we have to create a VkImageView object. An image view is quite literally a view into
-    // a image. It describes how to access the image and which part of the image to access
+    // to use any VkImage, including those in the swap chain, in the rendering
+    // pipeline we have to create a VkImageView object. An image view is quite
+    // literally a view into a image. It describes how to access the image and
+    // which part of the image to access
     std::vector<VkImageView> m_swapChainImagesViews;
-
+    std::vector<VkFramebuffer> m_swapChainFrameBuffers;
     VkFormat m_swapChainImageFormat;
     VkExtent2D m_swapChainExtent;
 
@@ -101,13 +99,18 @@ namespace fn {
 
     VkPipeline m_graphicsPipeline;
 
-    const std::vector<const char*> m_validationLayers = {
-      "VK_LAYER_LUNARG_standard_validation"
-    };
+    // Command buffers are used to record drawing commands
+    std::vector<VkCommandBuffer> m_commandBuffers;
 
-    const std::vector<const char*> m_deviceExtensions = {
-      VK_KHR_SWAPCHAIN_EXTENSION_NAME
-    };
+    // Coomand pools manage the memory that is used to store the buffers
+    // and command ubffers are allocated from them.
+    VkCommandPool m_commandPool;
+
+    const std::vector<const char *> m_validationLayers = {
+      "VK_LAYER_LUNARG_standard_validation"};
+
+    const std::vector<const char *> m_deviceExtensions = {
+      VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
     void initWindow() noexcept;
     void initVulkan() noexcept;
@@ -125,34 +128,43 @@ namespace fn {
 
     void createRenderPass() noexcept;
     void createGraphicsPipeline() noexcept;
+    void createFrameBuffers() noexcept;
+    void createCommandPool() noexcept;
+    void createCommandBuffers() noexcept;
 
     ///@Fix -> maybe move this function out of class.
     /// it is not uses any class memebers anyways
-    VkShaderModule createShaderModule(const std::vector<char>& code) const noexcept;
+    VkShaderModule createShaderModule(const std::vector<char> &code) const
+      noexcept;
 
     ///@Fix -> maybe move this function outside class?
     bool isDeviceSuitable(VkPhysicalDevice device) const noexcept;
 
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const noexcept;
-    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) const noexcept;
+    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) const
+      noexcept;
 
     // Surface format, represents the color depth, e.g color channels and
     // types, also color space
-    VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) const noexcept;
+    VkSurfaceFormatKHR chooseSwapSurfaceFormat(
+      const std::vector<VkSurfaceFormatKHR> &availableFormats) const noexcept;
 
-    // The presenation mode is arguably the most important setting for the swap chain,
-    // because it represents the actual conditions for showing images to the screen
-    VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) const noexcept;
+    // The presenation mode is arguably the most important setting for the swap
+    // chain, because it represents the actual conditions for showing images to
+    // the screen
+    VkPresentModeKHR chooseSwapPresentMode(
+      const std::vector<VkPresentModeKHR> &availablePresentModes) const
+      noexcept;
 
     // The swap extent is the resolution of images in the swap chain
     // and its *almost* always equal to the window we are drawing in
-    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) const noexcept;
+    VkExtent2D
+    chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities) const noexcept;
 
     bool checkValidationLayerSupport() const noexcept;
-    std::vector<const char*> getRequiredExtensions() const noexcept;
+    std::vector<const char *> getRequiredExtensions() const noexcept;
     bool checkDeviceextensionsupport(VkPhysicalDevice device) const noexcept;
-
   };
-} //fn
+} // namespace fn
 
 #endif

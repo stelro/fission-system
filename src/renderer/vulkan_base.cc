@@ -106,6 +106,9 @@ namespace fn {
     createImageViews();
     createRenderPass();
     createGraphicsPipeline();
+    createFrameBuffers();
+    createCommandPool();
+    createCommandBuffers();
   }
 
   void VulkanBase::mainLoop() noexcept {
@@ -116,6 +119,12 @@ namespace fn {
   }
 
   void VulkanBase::cleanUp() noexcept {
+
+    vkDestroyCommandPool(m_device, m_commandPool, nullptr);
+
+    for ( auto framebuffer : m_swapChainFrameBuffers ) {
+      vkDestroyFramebuffer(m_device, framebuffer, nullptr);
+    }
 
     vkDestroyPipeline(m_device, m_graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
@@ -299,13 +308,14 @@ namespace fn {
       if (queueFamily.queueCount > 0 && presentSupport) {
         indices.presentFamily = i;
       }
-
+ 
       if (indices.isComplete()) {
         break;
       }
 
       i++;
     }
+    
 
     return indices;
   }
@@ -817,5 +827,107 @@ namespace fn {
     VK_CHECK_RESULT(vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_renderPass));
   }
 
+  void VulkanBase::createFrameBuffers() noexcept {
+
+    m_swapChainFrameBuffers.resize(m_swapChainImagesViews.size());
+
+    // Iterate over the image views and crate the framebuffers from them
+    for (size_t i = 0; i < m_swapChainImagesViews.size(); i++ ) {
+      VkImageView attachments[] = {
+        m_swapChainImagesViews[i]
+      };
+
+      VkFramebufferCreateInfo framebufferInfo = {};
+      framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+      framebufferInfo.renderPass = m_renderPass;
+      framebufferInfo.attachmentCount = 1;
+      framebufferInfo.pAttachments = attachments;
+      framebufferInfo.width = m_swapChainExtent.width;
+      framebufferInfo.height = m_swapChainExtent.height;
+      // Our swap chaing images are simgle images
+      // so the number of layers are one!
+      framebufferInfo.layers = 1;
+
+      VK_CHECK_RESULT(vkCreateFramebuffer(m_device, &framebufferInfo, nullptr, &m_swapChainFrameBuffers[i]));
+
+    }
+  }
+
+  void VulkanBase::createCommandPool() noexcept {
+
+    // @Research -> it is worth to cache queuefamilies?
+    // we are using the call over 4 times in this class
+    auto queueFamilyIndices = findQueueFamilies(m_physicalDevice);
+
+    VkCommandPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    // We are going to to record commands for drawing, which is why we are
+    // choosing the graphics queue.
+    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+    poolInfo.flags = 0; // Optional
+
+    VK_CHECK_RESULT(vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool));
+
+  }
+
+  void VulkanBase::createCommandBuffers() noexcept {
+    m_commandBuffers.resize(m_swapChainFrameBuffers.size());
+
+    VkCommandBufferAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = m_commandPool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = static_cast<uint32_t>(m_commandBuffers.size());
+
+    VK_CHECK_RESULT(vkAllocateCommandBuffers(m_device, &allocInfo, m_commandBuffers.data()));
+
+    // Starting command buffer recording
+    for (size_t i = 0; i < m_commandBuffers.size(); i++) {
+      VkCommandBufferBeginInfo beginInfo = {};
+      beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+      beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+      beginInfo.pInheritanceInfo = nullptr; // Optional
+
+      VK_CHECK_RESULT(vkBeginCommandBuffer(m_commandBuffers[i], &beginInfo));
+
+      // Starting a render pass
+
+      VkRenderPassBeginInfo renderPassInfo = {};
+      renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+      renderPassInfo.renderPass = m_renderPass;
+      renderPassInfo.framebuffer = m_swapChainFrameBuffers[i];
+
+      // Define the size of the render area
+      renderPassInfo.renderArea.offset = {0,0};
+      renderPassInfo.renderArea.extent = m_swapChainExtent;
+
+      // Clear color is simply black with 100% opacity
+      VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
+      renderPassInfo.clearValueCount = 1;
+      renderPassInfo.pClearValues = &clearColor;
+
+      // Begin to record commands
+      vkCmdBeginRenderPass(m_commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+      // Bind the graphics pipeline
+      vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+
+      // Draw a triangle
+      /**
+         The paramters is as following:
+         vertexCount: vertex count, 3 for a triangle
+         instanceCount: used for instanced rendering, 1 if we are not doing that
+         firestVertex: used as an offset int the vertex buffer, defines the lowest value of gl_VertexInex
+         firstInstance: used as an offset for instance rendering
+       */
+      vkCmdDraw(m_commandBuffers[i], 3,1,0,0);
+
+      // The render pass now can be ended
+      vkCmdEndRenderPass(m_commandBuffers[i]);
+
+      VK_CHECK_RESULT(vkEndCommandBuffer(m_commandBuffers[i]));
+    }
+
+  }
 
 } // namespace fn
