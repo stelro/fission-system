@@ -106,6 +106,11 @@ namespace fn {
     // and command ubffers are allocated from them.
     VkCommandPool m_commandPool;
 
+    struct {
+      VkSemaphore imageIsAvailable;
+      VkSemaphore renderHasFinished;
+    } m_semaphores;
+
     const std::vector<const char *> m_validationLayers = {
       "VK_LAYER_LUNARG_standard_validation"};
 
@@ -131,7 +136,9 @@ namespace fn {
     void createFrameBuffers() noexcept;
     void createCommandPool() noexcept;
     void createCommandBuffers() noexcept;
+    void createSemaphores() noexcept;
 
+    void drawFrame() noexcept;
     ///@Fix -> maybe move this function out of class.
     /// it is not uses any class memebers anyways
     VkShaderModule createShaderModule(const std::vector<char> &code) const
