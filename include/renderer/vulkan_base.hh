@@ -20,6 +20,9 @@
 
 namespace fn {
 
+  // How many frames should be processed concurrently?
+  constexpr const int MAX_FRAMES_IN_FLIGHT = 2;
+
   struct QueueFamilyIndices {
 
     std::optional<uint32_t> graphicsFamily;
@@ -106,10 +109,19 @@ namespace fn {
     // and command ubffers are allocated from them.
     VkCommandPool m_commandPool;
 
+    // Sempahores are used here for GPU-GPU Synchronization
     struct {
-      VkSemaphore imageIsAvailable;
-      VkSemaphore renderHasFinished;
+      // Each fraome should have its own semaphore
+      std::vector<VkSemaphore> imageIsAvailable;
+      std::vector<VkSemaphore> renderHasFinished;
     } m_semaphores;
+
+    // Fences are used for CPU-GPU Synchronization
+    std::vector<VkFence> m_inFlightFences;
+
+    // To use the right pair of semaphores every time, we need to keep track
+    // of current frame
+    size_t m_currentFrame = 0;
 
     const std::vector<const char *> m_validationLayers = {
       "VK_LAYER_LUNARG_standard_validation"};
@@ -136,7 +148,7 @@ namespace fn {
     void createFrameBuffers() noexcept;
     void createCommandPool() noexcept;
     void createCommandBuffers() noexcept;
-    void createSemaphores() noexcept;
+    void createSyncObjects() noexcept;
 
     void drawFrame() noexcept;
     ///@Fix -> maybe move this function out of class.

@@ -110,7 +110,7 @@ namespace fn {
     createFrameBuffers();
     createCommandPool();
     createCommandBuffers();
-    createSemaphores();
+    createSyncObjects();
   }
 
   void VulkanBase::mainLoop() noexcept {
@@ -128,8 +128,11 @@ namespace fn {
 
   void VulkanBase::cleanUp() noexcept {
 
-    vkDestroySemaphore(m_device, m_semaphores.renderHasFinished, nullptr);
-    vkDestroySemaphore(m_device, m_semaphores.imageIsAvailable, nullptr);
+    for ( size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++ ) {
+      vkDestroySemaphore(m_device, m_semaphores.renderHasFinished[i], nullptr);
+      vkDestroySemaphore(m_device, m_semaphores.imageIsAvailable[i], nullptr);
+      vkDestroyFence(m_device, m_inFlightFences[i], nullptr);
+    }
 
     vkDestroyCommandPool(m_device, m_commandPool, nullptr);
 
@@ -971,14 +974,19 @@ namespace fn {
     // index of the swapchain image that has become available.
     // the index refer to to the VkImage in oure swapchainimages array. We are going
     // to use that index to pick the right command buffer
+
+    // Wait for the frame to be finished
+    vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, std::numeric_limits<uint64_t>::max());
+    vkResetFences(m_device, 1, &m_inFlightFences[m_currentFrame]);
+
     uint32_t imageIndex;
     vkAcquireNextImageKHR(m_device, m_swapChain, std::numeric_limits<uint64_t>::max(),
-                          m_semaphores.imageIsAvailable, VK_NULL_HANDLE, &imageIndex);
+                          m_semaphores.imageIsAvailable[m_currentFrame], VK_NULL_HANDLE, &imageIndex);
 
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = { m_semaphores.imageIsAvailable };
+    VkSemaphore waitSemaphores[] = { m_semaphores.imageIsAvailable[m_currentFrame] };
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = waitSemaphores;
@@ -989,11 +997,11 @@ namespace fn {
 
     // Which semaphores to signal once the command buffers have
     // finished the execution
-    VkSemaphore signalSemaphores[] = { m_semaphores.renderHasFinished };
+    VkSemaphore signalSemaphores[] = { m_semaphores.renderHasFinished[m_currentFrame] };
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    VK_CHECK_RESULT(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE));
+    VK_CHECK_RESULT(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_inFlightFences[m_currentFrame]));
 
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -1010,15 +1018,27 @@ namespace fn {
 
     vkQueuePresentKHR(m_presentQueue, &presentInfo);
 
-   
+    m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+
   }
 
-  void VulkanBase::createSemaphores() noexcept {
+  void VulkanBase::createSyncObjects() noexcept {
+    m_semaphores.imageIsAvailable.resize(MAX_FRAMES_IN_FLIGHT);
+    m_semaphores.renderHasFinished.resize(MAX_FRAMES_IN_FLIGHT);
+    m_inFlightFences.reserve(MAX_FRAMES_IN_FLIGHT);
+
     VkSemaphoreCreateInfo semaphoreInfo = {};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    VK_CHECK_RESULT(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_semaphores.imageIsAvailable));
-    VK_CHECK_RESULT(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_semaphores.renderHasFinished));
+    VkFenceCreateInfo fenceInfo = {};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+      VK_CHECK_RESULT(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_semaphores.imageIsAvailable[i]));
+      VK_CHECK_RESULT(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_semaphores.renderHasFinished[i]));
+      VK_CHECK_RESULT(vkCreateFence(m_device, &fenceInfo, nullptr, &m_inFlightFences[i]));
+    }
   }
 
 
