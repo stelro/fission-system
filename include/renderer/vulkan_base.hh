@@ -62,6 +62,11 @@ namespace fn {
       return VK_FALSE;
     }
 
+    static void frameBufferResizedCallback(GLFWwindow* window, int width, int height) {
+      auto app = reinterpret_cast<VulkanBase*>(glfwGetWindowUserPointer(window));
+      app->m_frameBufferHasResized = true;
+  }
+
   private:
     GLFWwindow *m_window;
     std::shared_ptr<Settings> m_settings;
@@ -122,6 +127,7 @@ namespace fn {
     // To use the right pair of semaphores every time, we need to keep track
     // of current frame
     size_t m_currentFrame = 0;
+    bool m_frameBufferHasResized = false;
 
     const std::vector<const char *> m_validationLayers = {
       "VK_LAYER_LUNARG_standard_validation"};
@@ -150,6 +156,7 @@ namespace fn {
     void createCommandBuffers() noexcept;
     void createSyncObjects() noexcept;
     void recreateSwapChain() noexcept;
+    void cleanupSwapChain() noexcept;
 
 
     void drawFrame() noexcept;

@@ -47,7 +47,7 @@ namespace fn {
     }
   }
 
-// TODO: move this function to seperate file
+  // TODO: move this function to seperate file
   static std::vector<char> readFile(const std::string &filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
@@ -89,12 +89,13 @@ namespace fn {
   void VulkanBase::initWindow() noexcept {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     m_window =
       glfwCreateWindow(static_cast<int>(m_settings->getWidth()),
                        static_cast<int>(m_settings->getHeight()),
                        m_settings->getEngineName().c_str(), nullptr, nullptr);
+    glfwSetWindowUserPointer(m_window, this);
+    glfwSetFramebufferSizeCallback(m_window, frameBufferResizedCallback);
   }
 
   void VulkanBase::initVulkan() noexcept {
@@ -128,7 +129,9 @@ namespace fn {
 
   void VulkanBase::cleanUp() noexcept {
 
-    for ( size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++ ) {
+    cleanupSwapChain();
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
       vkDestroySemaphore(m_device, m_semaphores.renderHasFinished[i], nullptr);
       vkDestroySemaphore(m_device, m_semaphores.imageIsAvailable[i], nullptr);
       vkDestroyFence(m_device, m_inFlightFences[i], nullptr);
@@ -136,19 +139,6 @@ namespace fn {
 
     vkDestroyCommandPool(m_device, m_commandPool, nullptr);
 
-    for (auto framebuffer : m_swapChainFrameBuffers) {
-      vkDestroyFramebuffer(m_device, framebuffer, nullptr);
-    }
-
-    vkDestroyPipeline(m_device, m_graphicsPipeline, nullptr);
-    vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
-    vkDestroyRenderPass(m_device, m_renderPass, nullptr);
-
-    for (auto imageView : m_swapChainImagesViews) {
-      vkDestroyImageView(m_device, imageView, nullptr);
-    }
-
-    vkDestroySwapchainKHR(m_device, m_swapChain, nullptr);
     vkDestroyDevice(m_device, nullptr);
 
     if (m_enableValidationLayers) {
@@ -519,7 +509,11 @@ namespace fn {
         std::numeric_limits<uint32_t>::max()) {
       return capabilities.currentExtent;
     } else {
-      VkExtent2D actualExtent = {m_settings->getWidth(), m_settings->getHeight()};
+      int width, height;
+      glfwGetFramebufferSize(m_window, &width, &height);
+
+      VkExtent2D actualExtent = {static_cast<uint32_t>(width),
+                                 static_cast<uint32_t>(height)};
 
       actualExtent.width =
         std::clamp(actualExtent.width, capabilities.minImageExtent.width,
@@ -844,7 +838,8 @@ namespace fn {
     dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     dependency.srcAccessMask = 0;
     dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+      VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
     VkRenderPassCreateInfo renderPassInfo = {};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -972,22 +967,33 @@ namespace fn {
     // - Return the image to the swapchain for presentation
 
     // index of the swapchain image that has become available.
-    // the index refer to to the VkImage in oure swapchainimages array. We are going
-    // to use that index to pick the right command buffer
+    // the index refer to to the VkImage in oure swapchainimages array. We are
+    // going to use that index to pick the right command buffer
 
     // Wait for the frame to be finished
-    vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, std::numeric_limits<uint64_t>::max());
-    vkResetFences(m_device, 1, &m_inFlightFences[m_currentFrame]);
+    vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE,
+                    std::numeric_limits<uint64_t>::max());
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(m_device, m_swapChain, std::numeric_limits<uint64_t>::max(),
-                          m_semaphores.imageIsAvailable[m_currentFrame], VK_NULL_HANDLE, &imageIndex);
+    auto result = vkAcquireNextImageKHR(m_device, m_swapChain,
+                                        std::numeric_limits<uint64_t>::max(),
+                                        m_semaphores.imageIsAvailable[m_currentFrame],
+                                        VK_NULL_HANDLE, &imageIndex);
+
+    if ( result == VK_ERROR_OUT_OF_DATE_KHR ) {
+      recreateSwapChain();
+      return;
+    } else if ( result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR ) {
+      log::fatal("Failed to aquire swap chain image");
+    }
 
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = { m_semaphores.imageIsAvailable[m_currentFrame] };
-    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    VkSemaphore waitSemaphores[] = {
+      m_semaphores.imageIsAvailable[m_currentFrame]};
+    VkPipelineStageFlags waitStages[] = {
+      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
@@ -997,11 +1003,15 @@ namespace fn {
 
     // Which semaphores to signal once the command buffers have
     // finished the execution
-    VkSemaphore signalSemaphores[] = { m_semaphores.renderHasFinished[m_currentFrame] };
+    VkSemaphore signalSemaphores[] = {
+      m_semaphores.renderHasFinished[m_currentFrame]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    VK_CHECK_RESULT(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_inFlightFences[m_currentFrame]));
+    vkResetFences(m_device, 1, &m_inFlightFences[m_currentFrame]);
+
+    VK_CHECK_RESULT(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo,
+                                  m_inFlightFences[m_currentFrame]));
 
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -1016,10 +1026,16 @@ namespace fn {
 
     presentInfo.pResults = nullptr; // Optional
 
-    vkQueuePresentKHR(m_presentQueue, &presentInfo);
+    result = vkQueuePresentKHR(m_presentQueue, &presentInfo);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_frameBufferHasResized) {
+      m_frameBufferHasResized = false;
+      recreateSwapChain();
+    } else if (result != VK_SUCCESS) {
+      log::fatal("failed to present swap chain image!");
+    }
 
     m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-
   }
 
   void VulkanBase::createSyncObjects() noexcept {
@@ -1035,14 +1051,56 @@ namespace fn {
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-      VK_CHECK_RESULT(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_semaphores.imageIsAvailable[i]));
-      VK_CHECK_RESULT(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_semaphores.renderHasFinished[i]));
-      VK_CHECK_RESULT(vkCreateFence(m_device, &fenceInfo, nullptr, &m_inFlightFences[i]));
+      VK_CHECK_RESULT(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr,
+                                        &m_semaphores.imageIsAvailable[i]));
+      VK_CHECK_RESULT(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr,
+                                        &m_semaphores.renderHasFinished[i]));
+      VK_CHECK_RESULT(
+        vkCreateFence(m_device, &fenceInfo, nullptr, &m_inFlightFences[i]));
     }
   }
 
   void VulkanBase::recreateSwapChain() noexcept {
-    
+
+    int width = 0;
+    int height = 0;
+    while (width == 0 || height == 0) {
+      glfwGetFramebufferSize(m_window, &width, &height);
+      glfwWaitEvents();
+    }
+
+    // We call vkDeviceWaitIdle beacuse we shouldn't touch resources
+    // that are still in use.
+    vkDeviceWaitIdle(m_device);
+
+    cleanupSwapChain();
+
+    createSwapChain();
+    createImageViews();
+    createRenderPass();
+    createGraphicsPipeline();
+    createFrameBuffers();
+    createCommandBuffers();
+  }
+
+  void VulkanBase::cleanupSwapChain() noexcept {
+    for (auto framebuffer : m_swapChainFrameBuffers) {
+      vkDestroyFramebuffer(m_device, framebuffer, nullptr);
+    }
+
+    vkFreeCommandBuffers(m_device, m_commandPool,
+                         static_cast<uint32_t>(m_commandBuffers.size()),
+                         m_commandBuffers.data());
+
+    vkDestroyPipeline(m_device, m_graphicsPipeline, nullptr);
+    vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
+    vkDestroyRenderPass(m_device, m_renderPass, nullptr);
+
+    for (auto imageView : m_swapChainImagesViews) {
+      vkDestroyImageView(m_device, imageView, nullptr);
+    }
+
+    vkDestroySwapchainKHR(m_device, m_swapChain, nullptr);
   }
 
 } // namespace fn
