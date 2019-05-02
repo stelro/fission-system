@@ -20,7 +20,7 @@
 
 namespace fn {
 
-  // How many frames should be processed concurrently?
+// How many frames should be processed concurrently?
   constexpr const int MAX_FRAMES_IN_FLIGHT = 2;
 
   struct QueueFamilyIndices {
@@ -149,6 +149,8 @@ namespace fn {
     void createCommandPool() noexcept;
     void createCommandBuffers() noexcept;
     void createSyncObjects() noexcept;
+    void recreateSwapChain() noexcept;
+
 
     void drawFrame() noexcept;
     ///@Fix -> maybe move this function out of class.

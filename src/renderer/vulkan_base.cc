@@ -1041,5 +1041,8 @@ namespace fn {
     }
   }
 
+  void VulkanBase::recreateSwapChain() noexcept {
+    
+  }
 
 } // namespace fn

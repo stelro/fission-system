@@ -61,6 +61,9 @@ namespace fn {
       std::string info_string;
       std::string args_str = generic_print_func(format, args);
 
+      /**
+         Maybe abstract somehow this swith statement away?
+       */
       switch (type) {
       case LogType::INFO:
         info_string += "[ ";
