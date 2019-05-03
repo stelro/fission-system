@@ -40,6 +40,8 @@ set(SOURCES
   src/core/logger.cc
   src/core/fission.cc
   src/core/settings.cc
+  src/math/matrix_transformations.cc
+  src/math/matrix.cc
   )
 set(TESTFILES
   tests/main.cc

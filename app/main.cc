@@ -1,5 +1,6 @@
 #include "renderer/vulkan_base.hh"
 #include "core/settings.hh"
+#include "core/fission.hh"
 #include <algorithm>
 
 int main() {
@@ -9,8 +10,10 @@ int main() {
   settings->setHeight(900);
   settings->setEngineName("Fission Engine / Vulkan Renderer");
 
-  fn::VulkanBase vulkanRenderer(settings);
+   fn::VulkanBase vulkanRenderer(settings);
   vulkanRenderer.run();
+  FN_ASSERT(false && "Hello world");
+
 
   return 0;
 }
