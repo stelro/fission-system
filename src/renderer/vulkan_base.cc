@@ -111,6 +111,7 @@ namespace fn {
     createFrameBuffers();
     createCommandPool();
     createVertexBuffer();
+    createIndexBuffer();
     createCommandBuffers();
     createSyncObjects();
   }
@@ -131,6 +132,9 @@ namespace fn {
   void VulkanBase::cleanUp() noexcept {
 
     cleanupSwapChain();
+
+    vkDestroyBuffer(m_device, m_indexBuffer, nullptr);
+    vkFreeMemory(m_device, m_indexBufferMemory, nullptr);
 
     vkDestroyBuffer(m_device, m_vertexBuffer, nullptr);
     vkFreeMemory(m_device, m_vertexBufferMemory, nullptr);
@@ -954,6 +958,8 @@ namespace fn {
       VkBuffer vertexBuffers[] = {m_vertexBuffer};
       VkDeviceSize offsets[] = {0};
       vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, vertexBuffers, offsets);
+      vkCmdBindIndexBuffer(m_commandBuffers[i], m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
 
       // Draw a triangle
       /**
@@ -964,8 +970,11 @@ namespace fn {
          value of gl_VertexInex firstInstance: used as an offset for instance
          rendering
       */
-      vkCmdDraw(m_commandBuffers[i], static_cast<uint32_t>(vertices.size()), 1, 0,
-                0);
+      // vkCmdDraw(m_commandBuffers[i], static_cast<uint32_t>(vertices.size()), 1, 0,
+      //           0);
+
+      vkCmdDrawIndexed(m_commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
 
       // The render pass now can be ended
       vkCmdEndRenderPass(m_commandBuffers[i]);
@@ -1124,8 +1133,8 @@ namespace fn {
 
     VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
-    // We are using a staging buffer to use jost visible buffer as termporary buffer
-    // and use a device local buffer as actual vertex buffer
+    // We are using a staging buffer to use jost visible buffer as termporary
+    // buffer and use a device local buffer as actual vertex buffer
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
 
@@ -1140,10 +1149,11 @@ namespace fn {
     memcpy(data, vertices.data(), bufferSize);
     vkUnmapMemory(m_device, stagingBufferMemory);
 
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+    createBuffer(bufferSize,
+                 VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                 m_vertexBuffer, m_vertexBufferMemory);
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_vertexBuffer,
+                 m_vertexBufferMemory);
 
     copyBuffer(stagingBuffer, m_vertexBuffer, bufferSize);
 
@@ -1200,7 +1210,8 @@ namespace fn {
     vkBindBufferMemory(m_device, buffer, bufferMemory, 0);
   }
 
-  void VulkanBase::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) noexcept {
+  void VulkanBase::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer,
+                              VkDeviceSize size) noexcept {
 
     VkCommandBufferAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -1237,8 +1248,32 @@ namespace fn {
     vkQueueWaitIdle(m_graphicsQueue);
 
     vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
-
   }
 
+  void VulkanBase::createIndexBuffer() noexcept {
+    VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 stagingBuffer, stagingBufferMemory);
+
+    void *data;
+    vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, indices.data(), bufferSize);
+    vkUnmapMemory(m_device, stagingBufferMemory);
+
+    createBuffer(
+      bufferSize,
+      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_indexBuffer, m_indexBufferMemory);
+
+    copyBuffer(stagingBuffer, m_indexBuffer, bufferSize);
+
+    vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+    vkFreeMemory(m_device, stagingBufferMemory, nullptr);
+  }
 
 } // namespace fn

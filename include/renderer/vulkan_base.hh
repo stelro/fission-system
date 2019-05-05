@@ -153,6 +153,8 @@ namespace fn {
     // Buffers
     VkBuffer m_vertexBuffer;
     VkDeviceMemory m_vertexBufferMemory;
+    VkBuffer m_indexBuffer;
+    VkDeviceMemory m_indexBufferMemory;
 
     // Sempahores are used here for GPU-GPU Synchronization
     struct {
@@ -175,9 +177,23 @@ namespace fn {
     const std::vector<const char *> m_deviceExtensions = {
       VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-    const std::vector<Vertex> vertices = {{{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
-                                          {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-                                          {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
+
+    /// Rectangle with indicies
+    const std::vector<Vertex> vertices = {
+      {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+      {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+      {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+      {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+    };
+
+    const std::vector<uint16_t> indices = {
+      0, 1, 2, 2, 3, 0
+    };
+
+    /// Triagnel
+    // const std::vector<Vertex> vertices = {{{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
+    //                                       {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+    //                                       {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
 
     void initWindow() noexcept;
     void initVulkan() noexcept;
@@ -198,6 +214,7 @@ namespace fn {
     void createFrameBuffers() noexcept;
     void createCommandPool() noexcept;
     void createVertexBuffer() noexcept;
+    void createIndexBuffer() noexcept;
     void createCommandBuffers() noexcept;
     void createSyncObjects() noexcept;
     void recreateSwapChain() noexcept;
