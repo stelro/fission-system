@@ -12,11 +12,14 @@
 #include <memory>
 #include <optional>
 #include <vector>
+#include <array>
 
 #include "core/logger.hh"
+#include "math/vector.hh"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+
 
 namespace fn {
 
@@ -37,6 +40,37 @@ namespace fn {
     VkSurfaceCapabilitiesKHR capabilities;
     std::vector<VkSurfaceFormatKHR> formats;
     std::vector<VkPresentModeKHR> presentModes;
+  };
+
+  struct Vertex {
+    Vec2 position;
+    Vec3 color;
+
+    static VkVertexInputBindingDescription getBindingDescription() {
+      VkVertexInputBindingDescription bindingDescription = {};
+
+      bindingDescription.binding = 0;
+      bindingDescription.stride = sizeof(Vertex);
+      bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+      return bindingDescription;
+    }
+
+    static std::array<VkVertexInputAttributeDescription, 2> getAttributesDescriptions() {
+      std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions = {};
+
+      attributeDescriptions[0].binding = 0;
+      attributeDescriptions[0].location = 0;
+      attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+      attributeDescriptions[0].offset = offsetof(Vertex, position);
+
+      attributeDescriptions[1].binding = 0;
+      attributeDescriptions[1].location = 1;
+      attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+      attributeDescriptions[1].offset = offsetof(Vertex, color);
+
+      return attributeDescriptions;
+    }
   };
 
   class Settings;
@@ -115,6 +149,10 @@ namespace fn {
     // and command ubffers are allocated from them.
     VkCommandPool m_commandPool;
 
+    // Buffers
+    VkBuffer m_vertexBuffer;
+    VkDeviceMemory m_vertexBufferMemory;
+
     // Sempahores are used here for GPU-GPU Synchronization
     struct {
       // Each fraome should have its own semaphore
@@ -136,6 +174,12 @@ namespace fn {
     const std::vector<const char *> m_deviceExtensions = {
       VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
+    const std::vector<Vertex> vertices = {
+      {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+      {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+      {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+    };
+
     void initWindow() noexcept;
     void initVulkan() noexcept;
     void mainLoop() noexcept;
@@ -154,6 +198,7 @@ namespace fn {
     void createGraphicsPipeline() noexcept;
     void createFrameBuffers() noexcept;
     void createCommandPool() noexcept;
+    void createVertexBuffer() noexcept;
     void createCommandBuffers() noexcept;
     void createSyncObjects() noexcept;
     void recreateSwapChain() noexcept;
@@ -193,6 +238,8 @@ namespace fn {
     bool checkValidationLayerSupport() const noexcept;
     std::vector<const char *> getRequiredExtensions() const noexcept;
     bool checkDeviceextensionsupport(VkPhysicalDevice device) const noexcept;
+
+    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const noexcept;
   };
 } // namespace fn
 

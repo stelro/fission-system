@@ -17,8 +17,8 @@
   VkResult res = (f);\
   if ( res != VK_SUCCESS ) \
   { \
-    fn::log::fatal("VkResult is \" %s \" in %s at line %d", \
-                   fn::VulkanErrorString(res).c_str(), __FILE__, __LINE__); \
+    fn::log::fatal("%s(%d) : VkResult is %s\n", \
+                    __FILE__, __LINE__,fn::VulkanErrorString(res).c_str()); \
   }\
 }\
 

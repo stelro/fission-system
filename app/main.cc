@@ -10,10 +10,8 @@ int main() {
   settings->setHeight(900);
   settings->setEngineName("Fission Engine / Vulkan Renderer");
 
-   fn::VulkanBase vulkanRenderer(settings);
+  fn::VulkanBase vulkanRenderer(settings);
   vulkanRenderer.run();
-  FN_ASSERT(false && "Hello world");
-
 
   return 0;
 }

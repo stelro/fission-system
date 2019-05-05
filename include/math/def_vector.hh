@@ -259,7 +259,7 @@ namespace fn {
         tVec4<T>(T a, T b, T c, T d);
         tVec4<T>(const tVec3<T>& vec, T d);
         tVec4<T>(const tVec4<T>& rhs);
-        tVec4<T>(T scalar);
+        explicit tVec4<T>(T scalar);
 
         tVec3<T> xyz();
         void set(T a, T b, T c, T d);

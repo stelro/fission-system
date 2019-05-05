@@ -110,6 +110,7 @@ namespace fn {
     createGraphicsPipeline();
     createFrameBuffers();
     createCommandPool();
+    createVertexBuffer();
     createCommandBuffers();
     createSyncObjects();
   }
@@ -130,6 +131,9 @@ namespace fn {
   void VulkanBase::cleanUp() noexcept {
 
     cleanupSwapChain();
+
+    vkDestroyBuffer(m_device, m_vertexBuffer, nullptr);
+    vkFreeMemory(m_device, m_vertexBufferMemory, nullptr);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
       vkDestroySemaphore(m_device, m_semaphores.renderHasFinished[i], nullptr);
@@ -653,15 +657,20 @@ namespace fn {
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertexShaderStageInfo,
                                                       fragShaderStageInfo};
 
-    /// The VkPipelineVertexInputStateCreateInfo describes the format of the
-    /// vertex data that will be passed to the vertex shader.
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
     vertexInputInfo.sType =
       VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
+
+
+    auto bindingDescription = Vertex::getBindingDescription();
+    auto attributesDescription = Vertex::getAttributesDescriptions();
+
+    /// The VkPipelineVertexInputStateCreateInfo describes the format of the
+    /// vertex data that will be passed to the vertex shader.
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributesDescription.size());
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.pVertexAttributeDescriptions = attributesDescription.data();
 
     /// the VkPipelineInputAssemblyStateCreateInfo struct describles 2 things:
     /// first what kind of geometry will be drawn from the verticies and if
@@ -936,9 +945,15 @@ namespace fn {
       vkCmdBeginRenderPass(m_commandBuffers[i], &renderPassInfo,
                            VK_SUBPASS_CONTENTS_INLINE);
 
+
       // Bind the graphics pipeline
       vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS,
                         m_graphicsPipeline);
+
+      // Bind the vertex buffer (into the vertex shader) during rendering operations
+      VkBuffer vertexBuffers[] = {m_vertexBuffer};
+      VkDeviceSize offsets[] = {0};
+      vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
       // Draw a triangle
       /**
@@ -949,7 +964,7 @@ namespace fn {
          value of gl_VertexInex firstInstance: used as an offset for instance
          rendering
       */
-      vkCmdDraw(m_commandBuffers[i], 3, 1, 0, 0);
+      vkCmdDraw(m_commandBuffers[i], static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 
       // The render pass now can be ended
       vkCmdEndRenderPass(m_commandBuffers[i]);
@@ -1102,5 +1117,57 @@ namespace fn {
 
     vkDestroySwapchainKHR(m_device, m_swapChain, nullptr);
   }
+
+  void VulkanBase::createVertexBuffer() noexcept {
+
+    /// @fix -> maybe the buffer creation must be moved to it's own
+    /// file and to have it's own implementation
+
+    VkBufferCreateInfo bufferInfo = {};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = sizeof(vertices[0]) * vertices.size();
+    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VK_CHECK_RESULT(vkCreateBuffer(m_device, &bufferInfo, nullptr, &m_vertexBuffer));
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(m_device, m_vertexBuffer, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                                               | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    VK_CHECK_RESULT(vkAllocateMemory(m_device, &allocInfo, nullptr, &m_vertexBufferMemory));
+
+    // If the allocation was successfull, then we can associate this memory with
+    // the buffer using:
+    vkBindBufferMemory(m_device, m_vertexBuffer, m_vertexBufferMemory, 0);
+
+    // It's now time to copy the vertex data to the buffer.
+    void *data;
+    vkMapMemory(m_device, m_vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+    // memcpy(destination, source, byets); YES I easily forget memcpy prototype
+    memcpy(data, vertices.data(), static_cast<size_t>(bufferInfo.size));
+    vkUnmapMemory(m_device, m_vertexBufferMemory);
+
+  }
+
+  uint32_t VulkanBase::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const noexcept {
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+      if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+        return i;
+      }
+    }
+
+    FN_ASSERT_M(false, "Failed to find suitable memory type!");
+
+  }
+
 
 } // namespace fn
