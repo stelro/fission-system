@@ -9,10 +9,10 @@
 
 #define VULKAN_BASE_H
 
+#include <array>
 #include <memory>
 #include <optional>
 #include <vector>
-#include <array>
 
 #include "core/logger.hh"
 #include "math/vector.hh"
@@ -20,10 +20,9 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-
 namespace fn {
 
-  // How many frames should be processed concurrently?
+// How many frames should be processed concurrently?
   constexpr const int MAX_FRAMES_IN_FLIGHT = 2;
 
   struct QueueFamilyIndices {
@@ -56,7 +55,8 @@ namespace fn {
       return bindingDescription;
     }
 
-    static std::array<VkVertexInputAttributeDescription, 2> getAttributesDescriptions() {
+    static std::array<VkVertexInputAttributeDescription, 2>
+    getAttributesDescriptions() {
       std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions = {};
 
       attributeDescriptions[0].binding = 0;
@@ -96,11 +96,12 @@ namespace fn {
       return VK_FALSE;
     }
 
-    static void frameBufferResizedCallback(GLFWwindow* window, int width, int height) {
-      auto app = reinterpret_cast<VulkanBase*>(glfwGetWindowUserPointer(window));
+    static void frameBufferResizedCallback(GLFWwindow *window, int width,
+                                           int height) {
+      auto app = reinterpret_cast<VulkanBase *>(glfwGetWindowUserPointer(window));
       app->m_frameBufferHasResized = true;
       int a = 10;
-  }
+    }
 
   private:
     GLFWwindow *m_window;
@@ -174,11 +175,9 @@ namespace fn {
     const std::vector<const char *> m_deviceExtensions = {
       VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-    const std::vector<Vertex> vertices = {
-      {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-      {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-      {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
-    };
+    const std::vector<Vertex> vertices = {{{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
+                                          {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+                                          {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
 
     void initWindow() noexcept;
     void initVulkan() noexcept;
@@ -203,7 +202,10 @@ namespace fn {
     void createSyncObjects() noexcept;
     void recreateSwapChain() noexcept;
     void cleanupSwapChain() noexcept;
-
+    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
+                      VkMemoryPropertyFlags properties, VkBuffer &buffer,
+                      VkDeviceMemory &bufferMemory) noexcept;
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) noexcept;
 
     void drawFrame() noexcept;
     ///@Fix -> maybe move this function out of class.
@@ -239,7 +241,8 @@ namespace fn {
     std::vector<const char *> getRequiredExtensions() const noexcept;
     bool checkDeviceextensionsupport(VkPhysicalDevice device) const noexcept;
 
-    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const noexcept;
+    uint32_t findMemoryType(uint32_t typeFilter,
+                            VkMemoryPropertyFlags properties) const noexcept;
   };
 } // namespace fn
 

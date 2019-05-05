@@ -47,7 +47,7 @@ namespace fn {
     }
   }
 
-  // TODO: move this function to seperate file
+// TODO: move this function to seperate file
   static std::vector<char> readFile(const std::string &filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
@@ -661,14 +661,14 @@ namespace fn {
     vertexInputInfo.sType =
       VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
-
     auto bindingDescription = Vertex::getBindingDescription();
     auto attributesDescription = Vertex::getAttributesDescriptions();
 
     /// The VkPipelineVertexInputStateCreateInfo describes the format of the
     /// vertex data that will be passed to the vertex shader.
     vertexInputInfo.vertexBindingDescriptionCount = 1;
-    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributesDescription.size());
+    vertexInputInfo.vertexAttributeDescriptionCount =
+      static_cast<uint32_t>(attributesDescription.size());
     vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
     vertexInputInfo.pVertexAttributeDescriptions = attributesDescription.data();
 
@@ -945,12 +945,12 @@ namespace fn {
       vkCmdBeginRenderPass(m_commandBuffers[i], &renderPassInfo,
                            VK_SUBPASS_CONTENTS_INLINE);
 
-
       // Bind the graphics pipeline
       vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS,
                         m_graphicsPipeline);
 
-      // Bind the vertex buffer (into the vertex shader) during rendering operations
+      // Bind the vertex buffer (into the vertex shader) during rendering
+      // operations
       VkBuffer vertexBuffers[] = {m_vertexBuffer};
       VkDeviceSize offsets[] = {0};
       vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, vertexBuffers, offsets);
@@ -964,7 +964,8 @@ namespace fn {
          value of gl_VertexInex firstInstance: used as an offset for instance
          rendering
       */
-      vkCmdDraw(m_commandBuffers[i], static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+      vkCmdDraw(m_commandBuffers[i], static_cast<uint32_t>(vertices.size()), 1, 0,
+                0);
 
       // The render pass now can be ended
       vkCmdEndRenderPass(m_commandBuffers[i]);
@@ -990,15 +991,15 @@ namespace fn {
                     std::numeric_limits<uint64_t>::max());
 
     uint32_t imageIndex;
-    auto result = vkAcquireNextImageKHR(m_device, m_swapChain,
-                                        std::numeric_limits<uint64_t>::max(),
-                                        m_semaphores.imageIsAvailable[m_currentFrame],
-                                        VK_NULL_HANDLE, &imageIndex);
+    auto result = vkAcquireNextImageKHR(
+      m_device, m_swapChain, std::numeric_limits<uint64_t>::max(),
+      m_semaphores.imageIsAvailable[m_currentFrame], VK_NULL_HANDLE,
+      &imageIndex);
 
-    if ( result == VK_ERROR_OUT_OF_DATE_KHR ) {
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
       recreateSwapChain();
       return;
-    } else if ( result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR ) {
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
       log::fatal("Failed to aquire swap chain image");
     }
 
@@ -1043,7 +1044,8 @@ namespace fn {
 
     result = vkQueuePresentKHR(m_presentQueue, &presentInfo);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_frameBufferHasResized) {
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
+        m_frameBufferHasResized) {
       m_frameBufferHasResized = false;
       recreateSwapChain();
     } else if (result != VK_SUCCESS) {
@@ -1120,52 +1122,121 @@ namespace fn {
 
   void VulkanBase::createVertexBuffer() noexcept {
 
-    /// @fix -> maybe the buffer creation must be moved to it's own
-    /// file and to have it's own implementation
+    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
-    VkBufferCreateInfo bufferInfo = {};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = sizeof(vertices[0]) * vertices.size();
-    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    // We are using a staging buffer to use jost visible buffer as termporary buffer
+    // and use a device local buffer as actual vertex buffer
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
 
-    VK_CHECK_RESULT(vkCreateBuffer(m_device, &bufferInfo, nullptr, &m_vertexBuffer));
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 stagingBuffer, stagingBufferMemory);
 
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_device, m_vertexBuffer, &memRequirements);
-
-    VkMemoryAllocateInfo allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                                               | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-    VK_CHECK_RESULT(vkAllocateMemory(m_device, &allocInfo, nullptr, &m_vertexBufferMemory));
-
-    // If the allocation was successfull, then we can associate this memory with
-    // the buffer using:
-    vkBindBufferMemory(m_device, m_vertexBuffer, m_vertexBufferMemory, 0);
-
-    // It's now time to copy the vertex data to the buffer.
     void *data;
-    vkMapMemory(m_device, m_vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+    vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
     // memcpy(destination, source, byets); YES I easily forget memcpy prototype
-    memcpy(data, vertices.data(), static_cast<size_t>(bufferInfo.size));
-    vkUnmapMemory(m_device, m_vertexBufferMemory);
+    memcpy(data, vertices.data(), bufferSize);
+    vkUnmapMemory(m_device, stagingBufferMemory);
 
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                 VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                 m_vertexBuffer, m_vertexBufferMemory);
+
+    copyBuffer(stagingBuffer, m_vertexBuffer, bufferSize);
+
+    vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+    vkFreeMemory(m_device, stagingBufferMemory, nullptr);
   }
 
-  uint32_t VulkanBase::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const noexcept {
+  uint32_t VulkanBase::findMemoryType(uint32_t typeFilter,
+                                      VkMemoryPropertyFlags properties) const
+    noexcept {
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
 
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-      if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+      if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags &
+                                    properties) == properties) {
         return i;
       }
     }
 
     FN_ASSERT_M(false, "Failed to find suitable memory type!");
+  }
+
+  void VulkanBase::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
+                                VkMemoryPropertyFlags properties,
+                                VkBuffer &buffer,
+                                VkDeviceMemory &bufferMemory) noexcept {
+
+    /// @fix -> maybe the buffer creation must be moved to it's own
+    /// file and to have it's own implementation
+
+    VkBufferCreateInfo bufferInfo = {};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VK_CHECK_RESULT(vkCreateBuffer(m_device, &bufferInfo, nullptr, &buffer));
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(m_device, buffer, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex =
+      findMemoryType(memRequirements.memoryTypeBits, properties);
+
+    VK_CHECK_RESULT(
+      vkAllocateMemory(m_device, &allocInfo, nullptr, &bufferMemory));
+
+    // If the allocation was successfull, then we can associate this memory with
+    // the buffer using:
+    vkBindBufferMemory(m_device, buffer, bufferMemory, 0);
+  }
+
+  void VulkanBase::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) noexcept {
+
+    VkCommandBufferAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = m_commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer);
+
+    // Start Recording the command buffer
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    VkBufferCopy copyRegion = {};
+    copyRegion.srcOffset = 0; // Optional
+    copyRegion.dstOffset = 0; // Optional
+    copyRegion.size = size;
+
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+    vkEndCommandBuffer(commandBuffer);
+
+    // Execute the command buffer to complete the transfer
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(m_graphicsQueue);
+
+    vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
 
   }
 

@@ -23,11 +23,11 @@
 }\
 
 #define FN_ASSERT_M(condition, msg) do                               \
-  { if (!(condition)) { fn::log::fatal("%s(%d): Assertion Failed with %s\n", __FILE__, __LINE__, msg); } \
+  { if (!(condition)) { fn::log::fatal("%s(%d): Assertion failed with error - %s\n", __FILE__, __LINE__, msg); } \
   } while(0);
 
 #define FN_ASSERT(condition) do                                        \
-  { if (!(condition)) { fn::log::fatal("%s(%d): Assertion Failed\n", __FILE__, __LINE__); } \
+  { if (!(condition)) { fn::log::fatal("%s(%d): Assertion failed\n", __FILE__, __LINE__); } \
   } while(0);
 
 
