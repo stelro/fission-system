@@ -162,6 +162,9 @@ namespace fn {
     std::vector<VkBuffer> m_uniformBuffers;
     std::vector<VkDeviceMemory> m_uniformBuffersMemory;
 
+    VkDescriptorPool m_descriptorPool;
+    std::vector<VkDescriptorSet> m_descriptorSets;
+
    
     // Sempahores are used here for GPU-GPU Synchronization
     struct {
@@ -238,6 +241,8 @@ namespace fn {
 
     void createDescriptorSetLayout() noexcept;
     void createUniformBuffers() noexcept;
+    void createDescriptorPool() noexcept;
+    void createDescriptorSets() noexcept;
     void updateuniformbuffers(uint32_t currentimage) noexcept;
 
     void drawFrame() noexcept;

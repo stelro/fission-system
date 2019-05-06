@@ -119,6 +119,8 @@ namespace fn {
     createVertexBuffer();
     createIndexBuffer();
     createUniformBuffers();
+    createDescriptorPool();
+    createDescriptorSets();
     createCommandBuffers();
     createSyncObjects();
   }
@@ -749,7 +751,7 @@ namespace fn {
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f; // Optional
     rasterizer.depthBiasClamp = 0.0f;          // Optional
@@ -970,6 +972,9 @@ namespace fn {
       vkCmdBindIndexBuffer(m_commandBuffers[i], m_indexBuffer, 0,
                            VK_INDEX_TYPE_UINT16);
 
+      vkCmdBindDescriptorSets(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[i], 0, nullptr);
+
+
       // Draw a triangle
       /**
          The paramters is as following:
@@ -1119,6 +1124,8 @@ namespace fn {
     createGraphicsPipeline();
     createFrameBuffers();
     createUniformBuffers();
+    createDescriptorPool();
+    createDescriptorSets();
     createCommandBuffers();
   }
 
@@ -1145,6 +1152,8 @@ namespace fn {
       vkDestroyBuffer(m_device, m_uniformBuffers[i], nullptr);
       vkFreeMemory(m_device, m_uniformBuffersMemory[i], nullptr);
     }
+
+    vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
   }
 
   void VulkanBase::createVertexBuffer() noexcept {
@@ -1348,7 +1357,7 @@ namespace fn {
                            glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(Math::radians(45.0f), m_swapChainExtent.width / float(m_swapChainExtent.height), 0.1f, 10.0f);
 
-    ubo.proj[1][1] *= 1;
+    ubo.proj[1][1] *= -1;
 
     void *data;
     vkMapMemory(m_device, m_uniformBuffersMemory[currentimage], 0, sizeof(ubo), 0, &data);
@@ -1356,6 +1365,56 @@ namespace fn {
     vkUnmapMemory(m_device, m_uniformBuffersMemory[currentimage]);
 
     // We left here
+  }
+
+  void VulkanBase::createDescriptorPool() noexcept {
+    VkDescriptorPoolSize poolSize = {};
+    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize.descriptorCount = static_cast<uint32_t>(m_swapChainImages.size());
+
+    VkDescriptorPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+
+    poolInfo.maxSets = static_cast<uint32_t>(m_swapChainImages.size());
+
+    VK_CHECK_RESULT(vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_descriptorPool));
+  }
+
+  void VulkanBase::createDescriptorSets() noexcept {
+    std::vector<VkDescriptorSetLayout> layouts(m_swapChainImages.size(), m_descriptorSetLayout);
+    VkDescriptorSetAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = m_descriptorPool;
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(m_swapChainImages.size());
+    allocInfo.pSetLayouts = layouts.data();
+
+    m_descriptorSets.resize(m_swapChainImages.size());
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(m_device, &allocInfo, m_descriptorSets.data()));
+
+    for (size_t i = 0; i < m_swapChainImages.size(); i++) {
+      VkDescriptorBufferInfo bufferInfo = {};
+      bufferInfo.buffer = m_uniformBuffers[i];
+      bufferInfo.offset = 0;
+      bufferInfo.range = sizeof(UniformBufferObject);
+
+      VkWriteDescriptorSet descriptorWrite = {};
+      descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+      descriptorWrite.dstSet = m_descriptorSets[i];
+      descriptorWrite.dstBinding = 0;
+      descriptorWrite.dstArrayElement = 0;
+      descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+      descriptorWrite.descriptorCount = 1;
+      descriptorWrite.pBufferInfo = &bufferInfo;
+      descriptorWrite.pImageInfo = nullptr; // Optional
+      descriptorWrite.pTexelBufferView = nullptr; // Optional
+      vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
+
+    }
+
+
+
   }
 
 } // namespace fn
