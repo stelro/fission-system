@@ -18,7 +18,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 include(ConfigSafeGuards)
 include(Colors)
 include_directories(external)
-
+include_directories(external/glm)
 add_subdirectory(external/glfw-3.3)
 
 
