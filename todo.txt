@@ -1,4 +1,4 @@
-- Next implementaion in the tutorial: Swap chain recreateion
+- Next implementaion in the tutorial: Descriptor layout and buffer
 
 
 //todo:

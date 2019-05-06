@@ -9,8 +9,13 @@
 #include "renderer/vulkan_base.hh"
 #include "core/fission.hh"
 #include "core/settings.hh"
+#include "math/math_utils.hh"
+#include "math/matrix_transformations.hh"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <fstream>
 #include <set>
@@ -107,11 +112,13 @@ namespace fn {
     createSwapChain();
     createImageViews();
     createRenderPass();
+    createDescriptorSetLayout();
     createGraphicsPipeline();
     createFrameBuffers();
     createCommandPool();
     createVertexBuffer();
     createIndexBuffer();
+    createUniformBuffers();
     createCommandBuffers();
     createSyncObjects();
   }
@@ -132,6 +139,8 @@ namespace fn {
   void VulkanBase::cleanUp() noexcept {
 
     cleanupSwapChain();
+
+    vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
 
     vkDestroyBuffer(m_device, m_indexBuffer, nullptr);
     vkFreeMemory(m_device, m_indexBufferMemory, nullptr);
@@ -778,8 +787,8 @@ namespace fn {
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 0;            // Optional
-    pipelineLayoutInfo.pSetLayouts = nullptr;         // Optional
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &m_descriptorSetLayout;
     pipelineLayoutInfo.pushConstantRangeCount = 0;    // Optional
     pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
@@ -958,8 +967,8 @@ namespace fn {
       VkBuffer vertexBuffers[] = {m_vertexBuffer};
       VkDeviceSize offsets[] = {0};
       vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, vertexBuffers, offsets);
-      vkCmdBindIndexBuffer(m_commandBuffers[i], m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-
+      vkCmdBindIndexBuffer(m_commandBuffers[i], m_indexBuffer, 0,
+                           VK_INDEX_TYPE_UINT16);
 
       // Draw a triangle
       /**
@@ -970,11 +979,12 @@ namespace fn {
          value of gl_VertexInex firstInstance: used as an offset for instance
          rendering
       */
-      // vkCmdDraw(m_commandBuffers[i], static_cast<uint32_t>(vertices.size()), 1, 0,
+      // vkCmdDraw(m_commandBuffers[i], static_cast<uint32_t>(vertices.size()), 1,
+      // 0,
       //           0);
 
-      vkCmdDrawIndexed(m_commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
+      vkCmdDrawIndexed(m_commandBuffers[i], static_cast<uint32_t>(indices.size()),
+                       1, 0, 0, 0);
 
       // The render pass now can be ended
       vkCmdEndRenderPass(m_commandBuffers[i]);
@@ -1011,6 +1021,8 @@ namespace fn {
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
       log::fatal("Failed to aquire swap chain image");
     }
+
+    updateuniformbuffers(imageIndex);
 
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1106,6 +1118,7 @@ namespace fn {
     createRenderPass();
     createGraphicsPipeline();
     createFrameBuffers();
+    createUniformBuffers();
     createCommandBuffers();
   }
 
@@ -1127,6 +1140,11 @@ namespace fn {
     }
 
     vkDestroySwapchainKHR(m_device, m_swapChain, nullptr);
+
+    for (size_t i = 0; i < m_swapChainImages.size(); i++) {
+      vkDestroyBuffer(m_device, m_uniformBuffers[i], nullptr);
+      vkFreeMemory(m_device, m_uniformBuffersMemory[i], nullptr);
+    }
   }
 
   void VulkanBase::createVertexBuffer() noexcept {
@@ -1274,6 +1292,60 @@ namespace fn {
 
     vkDestroyBuffer(m_device, stagingBuffer, nullptr);
     vkFreeMemory(m_device, stagingBufferMemory, nullptr);
+  }
+
+  void VulkanBase::createDescriptorSetLayout() noexcept {
+    VkDescriptorSetLayoutBinding uboLayoutBinding = {};
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorCount = 1;
+
+    // The stageflags can be also a combination of VkShaderStageFlagsBits
+    // or it can be a VK_SHADER_STAGE_ALL_GRAPHICS
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &uboLayoutBinding;
+
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
+                                                &m_descriptorSetLayout));
+  }
+
+  void VulkanBase::createUniformBuffers() noexcept {
+
+    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+    m_uniformBuffers.resize(m_swapChainImages.size());
+    m_uniformBuffersMemory.resize(m_swapChainImages.size());
+
+    for (size_t i = 0; i < m_swapChainImages.size(); i++) {
+      createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                   m_uniformBuffers[i], m_uniformBuffersMemory[i]);
+    }
+  }
+
+  void VulkanBase::updateuniformbuffers(uint32_t currentimage) noexcept {
+    static auto startTime = std::chrono::high_resolution_clock::now();
+
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(
+      currentTime - startTime)
+      .count();
+
+    UniformBufferObject ubo = {};
+    ubo.model = Math::rotate(Matrix4(1.0f), Vec3(0.0f, 0.0f, 1.0f),
+                             time * Math::radians(90.f));
+    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0, 0.0f, 0.0f),
+                           glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj = glm::perspective(Math::radians(45.0f), m_swapChainExtent.width / float(m_swapChainExtent.height), 0.1f, 10.0f);
+
+    // We left here
   }
 
 } // namespace fn

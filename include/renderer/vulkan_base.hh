@@ -16,6 +16,7 @@
 
 #include "core/logger.hh"
 #include "math/vector.hh"
+#include "math/matrix.hh"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -139,6 +140,8 @@ namespace fn {
     VkExtent2D m_swapChainExtent;
 
     VkRenderPass m_renderPass;
+    VkDescriptorSetLayout m_descriptorSetLayout;
+
     VkPipelineLayout m_pipelineLayout;
 
     VkPipeline m_graphicsPipeline;
@@ -156,6 +159,10 @@ namespace fn {
     VkBuffer m_indexBuffer;
     VkDeviceMemory m_indexBufferMemory;
 
+    std::vector<VkBuffer> m_uniformBuffers;
+    std::vector<VkDeviceMemory> m_uniformBuffersMemory;
+
+   
     // Sempahores are used here for GPU-GPU Synchronization
     struct {
       // Each fraome should have its own semaphore
@@ -177,6 +184,11 @@ namespace fn {
     const std::vector<const char *> m_deviceExtensions = {
       VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
+    struct UniformBufferObject {
+      Matrix4 model;
+      Matrix4 view;
+      Matrix4 proj;
+    };
 
     /// Rectangle with indicies
     const std::vector<Vertex> vertices = {
@@ -223,6 +235,10 @@ namespace fn {
                       VkMemoryPropertyFlags properties, VkBuffer &buffer,
                       VkDeviceMemory &bufferMemory) noexcept;
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) noexcept;
+
+    void createDescriptorSetLayout() noexcept;
+    void createUniformBuffers() noexcept;
+    void updateuniformbuffers(uint32_t currentimage) noexcept;
 
     void drawFrame() noexcept;
     ///@Fix -> maybe move this function out of class.
