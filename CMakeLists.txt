@@ -19,6 +19,7 @@ include(ConfigSafeGuards)
 include(Colors)
 include_directories(external)
 include_directories(external/glm)
+include_directories(external/stb)
 add_subdirectory(external/glfw-3.3)
 
 

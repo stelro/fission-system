@@ -1,0 +1,9 @@
+
+==where do we left the last time?==
+* We left in the chapter Texuturs/iamges, on the VkImageCreateInfo struct
+
+  
+TODO:
+  - [ ] VK_CHECK_RESULT() maybe to log information? or make it to take another one argument
+  and print the errors! ?
+  - [ ] logger.hh Replace variadic functions with variadic templates for loggin

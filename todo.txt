@@ -1,5 +1,4 @@
-- Next implementaion in the tutorial: Descriptor layout and buffer
-
+- We left in the chapter Texuturs/iamges, on the VkImageCreateInfo struct
 
 //todo:
 - VK_CHECK_RESULT() maybe to log information? or make it to take another one argument
