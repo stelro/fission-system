@@ -21,8 +21,7 @@ include_directories(external)
 include_directories(external/glm)
 include_directories(external/stb)
 add_subdirectory(external/glfw-3.3)
-
-
+add_subdirectory(external/glad)
 
 # --------------------------------------------------------------------------------
 #                         Add Shaders folder
@@ -38,11 +37,13 @@ source_group("Shaders" FILES ${SHADERS})
 set(SOURCES
   src/example.cc
   src/renderer/vulkan_base.cc
+  src/renderer/opengl_base.cc
   src/core/logger.cc
   src/core/fission.cc
   src/core/settings.cc
   src/math/matrix_transformations.cc
   src/math/matrix.cc
+  src/renderer/gl_shader_program.cc
   )
 set(TESTFILES
   tests/main.cc
@@ -57,18 +58,33 @@ ELSE()
   message(FATAL_ERROR "Could not find the vulkan library")
 ENDIF()
 
+# GLEW
+# find_package(GLEW REQUIRED)
+# IF(GLEW_FOUND)
+#   message(STATUS ${GLEW_LIBRARY})
+# ELSE()
+#   message(FATAL_ERROR "Could not find the glew library")
+# ENDIF()
+    
+
 # --------------------------------------------------------------------------------
 #                            Build! (Change as needed)
 # --------------------------------------------------------------------------------
 # Compile all sources into a library. Called engine here (change if you wish).
 add_library(engine ${SOURCES})
 
+# --------------------------------------------------------------------------------
+#                            Custom Compile Definitions
+# --------------------------------------------------------------------------------
+# which renderer should we use?
+add_definitions( -DRENDERER )
+
 # Engine needs its header files, and users of the library must also see these (PUBLIC). (No change needed)
 target_include_directories(engine
   PUBLIC ${PROJECT_SOURCE_DIR}/include
   )
 target_include_directories(engine PRIVATE external/glfw-3.3/include Vulkan::Vulkan)
-target_link_libraries(engine glfw Vulkan::Vulkan)
+target_link_libraries(engine glfw glad Vulkan::Vulkan)
 
 
 # Add an executable for the file main.cpp, here called main.x.

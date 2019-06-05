@@ -1456,25 +1456,25 @@ void VulkanBase::createImage(uint32_t width, uint32_t height, VkFormat format,
                              VkMemoryPropertyFlags properties, VkImage &image,
                              VkDeviceMemory &imageMemory) noexcept {
 
-  VkImageViewCreateInfo imageInfo = {};
-  imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  imageInfo.imageType = VK_IMAGE_TYPE_2D;
-  imageInfo.extent.width = width;
-  imageInfo.extent.height = height;
-  imageInfo.extent.depth = 1;
-  imageInfo.mipLevels = 1;
-  imageInfo.arrayLayers = 1;
-  imageInfo.format = format;
-  imageInfo.tiling = tiling;
-  imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  imageInfo.usage = usage;
-  imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-  imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-  VK_CHECK_RESULT(vkCreateImage(device, &imageInfo, nullptr, &image));
-
-  VkMemoryRequirements memRequirements;
-  vkGetImageMemoryRequirements(device, image, memRequirements);
+  // VkImageViewCreateInfo imageInfo = {};
+  // imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  // imageInfo.imageType = VK_IMAGE_TYPE_2D;
+  // imageInfo.extent.width = width;
+  // imageInfo.extent.height = height;
+  // imageInfo.extent.depth = 1;
+  // imageInfo.mipLevels = 1;
+  // imageInfo.arrayLayers = 1;
+  // imageInfo.format = format;
+  // imageInfo.tiling = tiling;
+  // imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  // imageInfo.usage = usage;
+  // imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+  // imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  //
+  // VK_CHECK_RESULT(vkCreateImage(m_device, &imageInfo, nullptr, &image));
+  //
+  // VkMemoryRequirements memRequirements;
+  // vkGetImageMemoryRequirements(m_device, image, memRequirements);
 }
 
 } // namespace fn
