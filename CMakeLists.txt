@@ -44,6 +44,7 @@ set(SOURCES
   src/math/matrix_transformations.cc
   src/math/matrix.cc
   src/renderer/gl_shader_program.cc
+  src/core/io_manager.cc
   )
 set(TESTFILES
   tests/main.cc

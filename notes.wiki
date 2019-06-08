@@ -17,6 +17,7 @@ TODO:
 =OpenGL Part=
 ==where do we left the last time?==
 
+* The next chapter should be the "Textures"
 
 TODO:
   - [ ] Create Keyboard / Mouse input class

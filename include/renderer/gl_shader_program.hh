@@ -2,6 +2,7 @@
 
 #include <glad/glad.h>
 #include <string>
+#include <glm/glm.hpp>
 
 namespace fn {
 
@@ -27,6 +28,7 @@ public:
   void setBool(const std::string &name, bool value) const noexcept;
   void setInt(const std::string &name, int value) const noexcept;
   void setFloat(const std::string &name, float value) const noexcept;
+  void setMat4(const std::string& name, const glm::mat4& mat) const noexcept;
 };
 
 } // namespace fn
