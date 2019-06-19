@@ -158,17 +158,17 @@ namespace fn {
     glm::vec3 cameraFront = glm::vec3( 0.0f, 0.0f, -1.0f );
     glm::vec3 cameraUp = glm::vec3( 0.0f, 1.0f, 0.0f );
 
-    char str_buffer[128];
+    char str_buffer[ 128 ];
 
     double lastTime = glfwGetTime();
-    
+
     while ( !glfwWindowShouldClose( m_window ) ) {
-      
+
       double currentTime = glfwGetTime();
       double deltaTime = currentTime - lastTime;
 
-      sprintf(str_buffer, "deltaTime: %lf", deltaTime);
-      glfwSetWindowTitle(m_window, str_buffer);
+      sprintf( str_buffer, "deltaTime: %lf", deltaTime );
+      glfwSetWindowTitle( m_window, str_buffer );
 
       // input
       processInput( m_window );
@@ -234,7 +234,6 @@ namespace fn {
     glDeleteVertexArrays( 1, &VAO );
     glDeleteBuffers( 1, &VBO );
     glDeleteBuffers( 1, &EBO );
-
   }
 
   void OpenGLBase::renderingCommands() noexcept {

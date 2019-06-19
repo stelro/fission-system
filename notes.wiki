@@ -17,8 +17,8 @@ TODO:
 =OpenGL Part=
 ==where do we left the last time?==
 
-* The next chapter should be the "Textures"
-
+* next we are implementing mouse moving ( pitch, yaw, roll )
+* 
 TODO:
   - [ ] Create Keyboard / Mouse input class
   - [ ] Define CMAKE custom variable to use specific renderer
