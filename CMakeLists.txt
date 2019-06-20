@@ -78,7 +78,12 @@ add_library(engine ${SOURCES})
 #                            Custom Compile Definitions
 # --------------------------------------------------------------------------------
 # which renderer should we use?
-add_definitions( -DRENDERER )
+#add_definitions( -DRENDERER )
+OPTION(VULKAN_RENDERER "Use Vulkan Renderer" ON)
+IF(VULKAN_RENDERER)
+  ADD_DEFINITIONS(-DVULKAN_RENDERER)
+ENDIF(VULKAN_RENDERER)
+
 
 # Engine needs its header files, and users of the library must also see these (PUBLIC). (No change needed)
 target_include_directories(engine

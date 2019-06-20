@@ -1,7 +1,7 @@
 
 =Vulkan Part=
 ==where do we left the last time?==
-* We left in the chapter Texuturs/iamges, on the VkImageCreateInfo struct
+* We left in the chapter Texuturs/iamges, on the endSingleTimeCommands struct
 
   
 TODO:
