@@ -43,7 +43,7 @@ namespace fn {
   };
 
   struct Vertex {
-    Vec2 position;
+    Vec3 position;
     Vec3 color;
     Vec2 texCoord;
 
@@ -64,7 +64,7 @@ namespace fn {
 
       attributeDescriptions[ 0 ].binding = 0;
       attributeDescriptions[ 0 ].location = 0;
-      attributeDescriptions[ 0 ].format = VK_FORMAT_R32G32_SFLOAT;
+      attributeDescriptions[ 0 ].format = VK_FORMAT_R32G32B32_SFLOAT;
       attributeDescriptions[ 0 ].offset = offsetof( Vertex, position );
 
       attributeDescriptions[ 1 ].binding = 0;
@@ -178,6 +178,12 @@ namespace fn {
     VkImageView m_textureImageView;
     VkSampler m_textureSampler;
 
+
+    VkImage m_depthImage;
+    VkDeviceMemory m_depthImageMemory;
+    VkImageView m_depthImageView;
+
+
     // Sempahores are used here for GPU-GPU Synchronization
     struct {
       // Each fraome should have its own semaphore
@@ -205,20 +211,20 @@ namespace fn {
       Matrix4 proj;
     };
 
+
     const std::vector<Vertex> vertices = {
-        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-        {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}};
+        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
 
-    const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
+        {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+        {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+        {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+        {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}};
 
-    /// Triagnel
-    // const std::vector<Vertex> vertices = {{{0.0f, -0.5f},
-    // {1.0f, 1.0f, 1.0f}},
-    //                                       {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-    //                                       {{-0.5f, 0.5f}, {0.0f,
-    //                                       0.0f, 1.0f}}};
+    const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
+
 
     void initWindow() noexcept;
     void initVulkan() noexcept;
@@ -262,10 +268,16 @@ namespace fn {
                       VkMemoryPropertyFlags properties, VkImage &image,
                       VkDeviceMemory &imageMemory ) noexcept;
     void createTextureImageView() noexcept;
-    VkImageView createImageView( VkImage image, VkFormat format ) noexcept;
+    VkImageView createImageView( VkImage image, VkFormat format, VkImageAspectFlags aspectFlags ) noexcept;
     void createTextureSampler() noexcept;
-
+    void createDepthResources() noexcept;
+    VkFormat findSupportedFormat( const std::vector<VkFormat> &candidates,
+                                  VkImageTiling tiling,
+                                  VkFormatFeatureFlags features ) noexcept;
+    VkFormat findDepthFormat() noexcept;
+    bool hasStencilComponent(VkFormat format) noexcept;
     void drawFrame() noexcept;
+
     ///@Fix -> maybe move this function out of class.
     /// it is not uses any class memebers anyways
     VkShaderModule createShaderModule( const std::vector<char> &code ) const

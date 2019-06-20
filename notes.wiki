@@ -1,8 +1,9 @@
 
 =Vulkan Part=
 ==where do we left the last time?==
-* We left in the chapter Texuturs/iamges, on the endSingleTimeCommands struct
 
+* We left in the depth buffering chatper  / if
+  (newlayout==vkimage_layout_depth_stencil_attachment_optiaml) { ..
   
 TODO:
   - [ ] VK_CHECK_RESULT() maybe to log information? or make it to take another one argument
