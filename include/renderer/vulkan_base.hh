@@ -168,6 +168,8 @@ namespace fn {
 
     VkImage m_textureImage;
     VkDeviceMemory m_textureImageMemory;
+    VkImageView m_textureImageView;
+    VkSampler m_textureSampler;
 
     // Sempahores are used here for GPU-GPU Synchronization
     struct {
@@ -252,6 +254,9 @@ namespace fn {
                       VkImageTiling tiling, VkImageUsageFlags usage,
                       VkMemoryPropertyFlags properties, VkImage &image,
                       VkDeviceMemory &imageMemory ) noexcept;
+    void createTextureImageView() noexcept;
+    VkImageView createImageView(VkImage image, VkFormat format) noexcept;
+    void createTextureSampler() noexcept;
 
     void drawFrame() noexcept;
     ///@Fix -> maybe move this function out of class.
