@@ -20,6 +20,7 @@ include(Colors)
 include_directories(external)
 include_directories(external/glm)
 include_directories(external/stb)
+include_directories(external/tinyobjloader)
 add_subdirectory(external/glfw-3.3)
 add_subdirectory(external/glad)
 

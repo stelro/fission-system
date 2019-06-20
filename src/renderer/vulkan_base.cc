@@ -13,11 +13,13 @@
 #include "math/matrix_transformations.hh"
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
+
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tinyobjloader/tiny_obj_loader.h>
 
 #include <algorithm>
 #include <chrono>
@@ -25,6 +27,7 @@
 #include <fstream>
 #include <set>
 #include <vector>
+#include <unordered_map>
 
 namespace fn {
 
@@ -129,6 +132,7 @@ namespace fn {
     createTextureImage();
     createTextureImageView();
     createTextureSampler();
+    loadModel();
     createVertexBuffer();
     createIndexBuffer();
     createUniformBuffers();
@@ -1028,7 +1032,7 @@ namespace fn {
       vkCmdBindVertexBuffers( m_commandBuffers[ i ], 0, 1, vertexBuffers,
                               offsets );
       vkCmdBindIndexBuffer( m_commandBuffers[ i ], m_indexBuffer, 0,
-                            VK_INDEX_TYPE_UINT16 );
+                            VK_INDEX_TYPE_UINT32 );
 
       vkCmdBindDescriptorSets(
           m_commandBuffers[ i ], VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -1404,8 +1408,7 @@ namespace fn {
                      .count();
 
     UniformBufferObject ubo = {};
-    ubo.model = Math::rotate( Matrix4( 1.0f ), Vec3( 0.0f, 0.0f, 1.0f ),
-                              Math::radians( 0.f ) );
+    ubo.model = glm::rotate(glm::mat4(1.0f),  glm::radians(90.0f), glm::vec3(0.0f, 0.0, 1.0f));
     ubo.view = glm::lookAt( glm::vec3( 2.0f, 2.0f, 2.0f ),
                             glm::vec3( 0.0, 0.0f, 0.0f ),
                             glm::vec3( 0.0f, 0.0f, 1.0f ) );
@@ -1503,8 +1506,8 @@ namespace fn {
     int texWidth, texHeight, texChannels;
 
     //@fix ofc I will chagne this in the feature
-    stbi_uc *pixels = stbi_load( "../textures/statue.jpg", &texWidth,
-                                 &texHeight, &texChannels, STBI_rgb_alpha );
+    stbi_uc *pixels = stbi_load( TEXTURE_PATH.c_str(), &texWidth, &texHeight,
+                                 &texChannels, STBI_rgb_alpha );
     VkDeviceSize imageSize =
         static_cast<VkDeviceSize>( texWidth * texHeight * 4 );
 
@@ -1834,6 +1837,49 @@ namespace fn {
   bool VulkanBase::hasStencilComponent( VkFormat format ) noexcept {
     return format == VK_FORMAT_D32_SFLOAT_S8_UINT ||
            format == VK_FORMAT_D24_UNORM_S8_UINT;
+  }
+
+  void VulkanBase::loadModel() noexcept {
+
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string warn, err;
+
+    if ( !tinyobj::LoadObj( &attrib, &shapes, &materials, &warn, &err,
+                            MODEL_PATH.c_str() ) ) {
+      log::warning( "%s\n", warn );
+      log::error( "%s\n", err );
+    }
+
+    std::unordered_map<Vertex, uint32_t> uniqueVertices = {};
+
+    for ( const auto &shape : shapes ) {
+      for ( const auto &index : shape.mesh.indices ) {
+
+        Vertex vertex = {};
+
+        vertices.push_back( vertex );
+
+
+        vertex.position =  {attrib.vertices[ 3 * index.vertex_index + 0 ],
+                                attrib.vertices[ 3 * index.vertex_index + 1 ],
+                                attrib.vertices[ 3 * index.vertex_index + 2 ]};
+
+        vertex.texCoord =
+             {attrib.texcoords[ 2 * index.texcoord_index + 0 ],
+                  1.0f - attrib.texcoords[ 2 * index.texcoord_index + 1 ]};
+
+        vertex.color =  {1.0f, 1.0f, 1.0f};
+
+        if ( uniqueVertices.count( vertex ) == 0 ) {
+          uniqueVertices[ vertex ] = static_cast<uint32_t>( vertices.size() );
+          vertices.push_back( vertex );
+        }
+
+        indices.push_back( uniqueVertices[ vertex ] );
+      }
+    }
   }
 
 }    // namespace fn
