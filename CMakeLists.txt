@@ -46,6 +46,10 @@ set(SOURCES
   src/math/matrix.cc
   src/renderer/gl_shader_program.cc
   src/core/io_manager.cc
+  src/core/camera.cc
+  src/renderer/base_renderer.cc
+  src/core/engine.cc
+  src/core/object.cc
   )
 set(TESTFILES
   tests/main.cc

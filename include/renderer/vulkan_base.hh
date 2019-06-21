@@ -1,13 +1,4 @@
-#if !defined( VULKAN_BASE_H )
-/* ========================================================================
-   $File: vulkan_base.hh $
-   $Date: Fri Apr 26 21:22:20 2019 $
-   $Revision: $
-   $Creator: Ro Stelmach $
-   $Notice: (C) Copyright 2019 by Ro Orestis Stelmach. All Rights Reserved. $
-   ======================================================================== */
-
-#define VULKAN_BASE_H
+#pragma once
 
 #include <array>
 #include <memory>
@@ -17,6 +8,7 @@
 #include "core/logger.hh"
 #include "math/matrix.hh"
 #include "math/vector.hh"
+#include "renderer/base_renderer.hh"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -87,8 +79,8 @@ namespace fn {
 
   constexpr const int MAX_FRAMES_IN_FLIGHT = 2;
 
-  const std::string MODEL_PATH = "../models/chalet.obj";
-  const std::string TEXTURE_PATH = "../textures/chalet.jpg";
+  const std::string MODEL_PATH = "../models/Crate1.obj";
+  const std::string TEXTURE_PATH = "../textures/crate_1.jpg";
 
   struct QueueFamilyIndices {
 
@@ -108,8 +100,10 @@ namespace fn {
 
 
   class Settings;
+  class IOManager;
+  class Camera;
 
-  class VulkanBase {
+  class VulkanBase : public BaseRenderer {
   public:
     explicit VulkanBase( std::shared_ptr<Settings> settings ) noexcept;
     ~VulkanBase() noexcept;
@@ -141,6 +135,9 @@ namespace fn {
     GLFWwindow *m_window;
     std::shared_ptr<Settings> m_settings;
     VkInstance m_instance;
+
+    IOManager* m_iomanager = nullptr;
+    Camera* m_camera = nullptr;
 
     VkDebugUtilsMessengerEXT m_debugMessenger;
 
@@ -231,21 +228,28 @@ namespace fn {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
     struct UniformBufferObject {
-      Matrix4 model;
-      Matrix4 view;
-      Matrix4 proj;
+      glm::mat4 model;
+      glm::mat4 view;
+      glm::mat4 proj;
     };
 
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
+
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
 
+    void initWindow() noexcept override;
+    void initRenderer() noexcept override;
+//    void mainLoop() noexcept;
+    void cleanUp() noexcept override;
 
-    void initWindow() noexcept;
-    void initVulkan() noexcept;
-    void mainLoop() noexcept;
-    void cleanUp() noexcept;
+    void render(float dt) noexcept override;
+    void update(float dt) noexcept override;
+
+    GLFWwindow* getWindow() noexcept {
+      return m_window;
+    }
 
     void createInstance() noexcept;
     void setupDebugMessenger() noexcept;
@@ -345,4 +349,3 @@ namespace fn {
   };
 }    // namespace fn
 
-#endif

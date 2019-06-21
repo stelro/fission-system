@@ -4,8 +4,7 @@ namespace fn {
 
   IOManager *IOManager::m_instance = nullptr;
 
-  IOManager *
-  IOManager::getInstnace() noexcept {
+  IOManager *IOManager::getInstnace() noexcept {
     if ( m_instance )
       return m_instance;
 
@@ -13,20 +12,17 @@ namespace fn {
     return m_instance;
   }
 
-  void
-  IOManager::destory() noexcept {
+  void IOManager::destory() noexcept {
     FN_ASSERT_M( m_instance, "IOManager is already destroyed!" );
     delete m_instance;
     m_instance = nullptr;
   }
 
-  void
-  IOManager::setWindow( GLFWwindow *window ) noexcept {
+  void IOManager::setWindow( GLFWwindow *window ) noexcept {
     m_window = window;
   }
 
-  void
-  IOManager::update( [[maybe_unused]] float dt ) noexcept {
+  void IOManager::update( [[maybe_unused]] float dt ) noexcept {
     //@fix: this assertion check here is bad, try to solve it
     FN_ASSERT_M( m_window,
                  "Window ojbect has not been set in IOManager class" );
@@ -52,10 +48,9 @@ namespace fn {
   }
 
 
-  void
-  IOManager::key_callback( GLFWwindow *window, int key,
-                           [[maybe_unused]] int scan_code, int action,
-                           [[maybe_unused]] int modes ) noexcept {
+  void IOManager::key_callback( GLFWwindow *window, int key,
+                                [[maybe_unused]] int scan_code, int action,
+                                [[maybe_unused]] int modes ) noexcept {
 
     auto *io_manager =
         static_cast<IOManager *>( glfwGetWindowUserPointer( window ) );
@@ -74,9 +69,8 @@ namespace fn {
     }
   }
 
-  void
-  IOManager::mouse_callback( GLFWwindow *window, int button, int action,
-                             int mods ) noexcept {
+  void IOManager::mouse_callback( GLFWwindow *window, int button, int action,
+                                  int mods ) noexcept {
 
     auto *io_manager =
         static_cast<IOManager *>( glfwGetWindowUserPointer( window ) );
@@ -95,8 +89,7 @@ namespace fn {
     }
   }
 
-  bool
-  IOManager::wasKeyDown( int key ) const noexcept {
+  bool IOManager::wasKeyDown( int key ) const noexcept {
     auto it = m_previousKeys.find( key );
 
     if ( it != m_previousKeys.end() ) {
@@ -106,38 +99,31 @@ namespace fn {
     }
   }
 
-  void
-  IOManager::pressKey( int key ) noexcept {
+  void IOManager::pressKey( int key ) noexcept {
     m_pressedKeys[ key ] = true;
   }
 
-  void
-  IOManager::releaseKey( int key ) noexcept {
+  void IOManager::releaseKey( int key ) noexcept {
     m_pressedKeys[ key ] = false;
   }
 
-  void
-  IOManager::pressLeftMouse( bool value ) noexcept {
+  void IOManager::pressLeftMouse( bool value ) noexcept {
     m_mouseButtons.left = value;
   }
 
-  void
-  IOManager::pressRightMouse( bool value ) noexcept {
+  void IOManager::pressRightMouse( bool value ) noexcept {
     m_mouseButtons.right = value;
   }
 
-  void
-  IOManager::pressMiddleMouse( bool value ) noexcept {
+  void IOManager::pressMiddleMouse( bool value ) noexcept {
     m_mouseButtons.middle = value;
   }
 
-  bool
-  IOManager::isKeyPressed( int key ) const noexcept {
+  bool IOManager::isKeyPressed( int key ) const noexcept {
     return isKeyHoldDown( key );
   }
 
-  bool
-  IOManager::isKeyHoldDown( int key ) const noexcept {
+  bool IOManager::isKeyHoldDown( int key ) const noexcept {
     auto it = m_pressedKeys.find( key );
 
     if ( it != m_pressedKeys.end() ) {
@@ -147,28 +133,23 @@ namespace fn {
     }
   }
 
-  bool
-  IOManager::isLeftMousePressed() const noexcept {
+  bool IOManager::isLeftMousePressed() const noexcept {
     return m_mouseButtons.left;
   }
 
-  bool
-  IOManager::isRightMousePressed() const noexcept {
+  bool IOManager::isRightMousePressed() const noexcept {
     return m_mouseButtons.right;
   }
 
-  bool
-  IOManager::isMiddleMousePressed() const noexcept {
+  bool IOManager::isMiddleMousePressed() const noexcept {
     return m_mouseButtons.middle;
   }
 
-  double
-  IOManager::getMousePosX() const noexcept {
+  double IOManager::getMousePosX() const noexcept {
     return m_mousePos.x;
   }
 
-  double
-  IOManager::getMousePosY() const noexcept {
+  double IOManager::getMousePosY() const noexcept {
     return m_mousePos.y;
   }
 
