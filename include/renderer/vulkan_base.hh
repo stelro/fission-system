@@ -77,8 +77,8 @@ namespace fn {
 
   constexpr const int MAX_FRAMES_IN_FLIGHT = 2;
 
-  const std::string MODEL_PATH = "../models/Crate1.obj";
-  const std::string TEXTURE_PATH = "../textures/crate_1.jpg";
+  const std::string MODEL_PATH = "../models/chalet.obj";
+  const std::string TEXTURE_PATH = "../textures/chalet.jpg";
 
   struct QueueFamilyIndices {
 
@@ -201,6 +201,15 @@ namespace fn {
     VkDeviceMemory m_depthImageMemory;
     VkImageView m_depthImageView;
 
+    // These members used for offcreen buffer which is used
+    // for MSAA
+    VkImage m_colorImage;
+    VkDeviceMemory m_colorImageMemory;
+    VkImageView m_colorImageView;
+
+
+    // Multi-Sample Anti Aliasing
+    VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
     // Sempahores are used here for GPU-GPU Synchronization
     struct {
@@ -277,7 +286,7 @@ namespace fn {
     void updateuniformbuffers( uint32_t currentimage ) noexcept;
 
     void createTextureImage() noexcept;
-    void createImage( uint32_t width, uint32_t height, uint32_t mipLevels, VkFormat format,
+    void createImage( uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format,
                       VkImageTiling tiling, VkImageUsageFlags usage,
                       VkMemoryPropertyFlags properties, VkImage &image,
                       VkDeviceMemory &imageMemory ) noexcept;
@@ -285,6 +294,7 @@ namespace fn {
     VkImageView createImageView( VkImage image, VkFormat format, VkImageAspectFlags aspectFlags,
                                  uint32_t mipLevels ) noexcept;
     void createTextureSampler() noexcept;
+    void createColorResources() noexcept;
     void createDepthResources() noexcept;
     VkFormat findSupportedFormat( const std::vector<VkFormat> &candidates, VkImageTiling tiling,
                                   VkFormatFeatureFlags features ) noexcept;
@@ -333,6 +343,8 @@ namespace fn {
                             uint32_t height ) noexcept;
     void generateMipMaps( VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight,
                                       uint32_t mipLevels ) noexcept;
+
+    VkSampleCountFlagBits getMaxUsableSampleCount() noexcept;
   };
 }    // namespace fn
 

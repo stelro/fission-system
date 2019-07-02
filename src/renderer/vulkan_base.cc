@@ -123,6 +123,7 @@ namespace fn {
     createDescriptorSetLayout();
     createGraphicsPipeline();
     createCommandPool();
+    createColorResources();
     createDepthResources();
     createFrameBuffers();
     createTextureImage();
@@ -294,6 +295,7 @@ namespace fn {
     for ( const auto &device : devices ) {
       if ( isDeviceSuitable( device ) ) {
         m_physicalDevice = device;
+        m_msaaSamples = getMaxUsableSampleCount();
         break;
       }
     }
@@ -363,7 +365,7 @@ namespace fn {
 
   void VulkanBase::createLogicalDevice() noexcept {
 
-    QueueFamilyIndices indices = findQueueFamilies( m_physicalDevice );
+    auto indices = findQueueFamilies( m_physicalDevice );
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(),
@@ -382,7 +384,9 @@ namespace fn {
 
     VkPhysicalDeviceFeatures deviceFeatures = {};
     deviceFeatures.samplerAnisotropy = VK_TRUE;
-
+    //@note: enable sample shading feature for the device 
+    // (althought this has an additional performance cost)
+    deviceFeatures.sampleRateShading = VK_TRUE;
 
     VkDeviceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -732,11 +736,16 @@ namespace fn {
     VkPipelineMultisampleStateCreateInfo multisampling = {};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = VK_FALSE;
-    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisampling.rasterizationSamples = m_msaaSamples;
     multisampling.minSampleShading = 1.0f;             // Optional
     multisampling.pSampleMask = nullptr;               // Optional
     multisampling.alphaToCoverageEnable = VK_FALSE;    // Optional
     multisampling.alphaToOneEnable = VK_FALSE;         // Optional
+
+    //@note: enable sample shading in the pipeline
+    // (althought this has some performance cost)
+    multisampling.sampleShadingEnable = VK_TRUE;
+    multisampling.minSampleShading = 0.2f; // min fraction for sample shading; closer to one is smoother
 
 
     VkPipelineDepthStencilStateCreateInfo depthStencil = {};
@@ -810,9 +819,10 @@ namespace fn {
   }
 
   void VulkanBase::createRenderPass() noexcept {
+
     VkAttachmentDescription colorAttachment = {};
     colorAttachment.format = m_swapChainImageFormat;
-    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.samples = m_msaaSamples;
 
     // The loadOp and storeOp determine what to do with the data
     // in the attachment before rendering and after rendering
@@ -820,7 +830,7 @@ namespace fn {
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     VkAttachmentReference colorAttachmentRef = {};
     colorAttachmentRef.attachment = 0;
@@ -828,7 +838,7 @@ namespace fn {
 
     VkAttachmentDescription depthAttachment = {};
     depthAttachment.format = findDepthFormat();
-    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.samples = m_msaaSamples;
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -836,16 +846,30 @@ namespace fn {
     depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
+    VkAttachmentDescription colorAttachmentResolve = {};
+    colorAttachmentResolve.format = m_swapChainImageFormat;
+    colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
     VkAttachmentReference depthAttachmentRef = {};
     depthAttachmentRef.attachment = 1;
     depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
+    VkAttachmentReference colorAttachmentResolveRef = {};
+    colorAttachmentResolveRef.attachment = 2;
+    colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     VkSubpassDescription subpass = {};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
     subpass.pDepthStencilAttachment = &depthAttachmentRef;
+    subpass.pResolveAttachments = &colorAttachmentResolveRef;
 
     VkSubpassDependency dependency = {};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -856,7 +880,8 @@ namespace fn {
     dependency.dstAccessMask =
         VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-    std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
+    std::array<VkAttachmentDescription, 3> attachments = {colorAttachment, depthAttachment,
+                                                          colorAttachmentResolve};
     VkRenderPassCreateInfo renderPassInfo = {};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     renderPassInfo.attachmentCount = static_cast<uint32_t>( attachments.size() );
@@ -877,7 +902,8 @@ namespace fn {
     // Iterate over the image views and crate the framebuffers from them
     for ( size_t i = 0; i < m_swapChainImagesViews.size(); i++ ) {
 
-      std::array<VkImageView, 2> attachments = {m_swapChainImagesViews[ i ], m_depthImageView};
+      std::array<VkImageView, 3> attachments = {m_colorImageView, m_depthImageView,
+                                                m_swapChainImagesViews[ i ]};
 
       VkFramebufferCreateInfo framebufferInfo = {};
       framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -1109,6 +1135,7 @@ namespace fn {
     createImageViews();
     createRenderPass();
     createGraphicsPipeline();
+    createColorResources();
     createDepthResources();
     createFrameBuffers();
     createUniformBuffers();
@@ -1118,6 +1145,10 @@ namespace fn {
   }
 
   void VulkanBase::cleanupSwapChain() noexcept {
+
+    vkDestroyImageView( m_device, m_colorImageView, nullptr );
+    vkDestroyImage( m_device, m_colorImage, nullptr );
+    vkFreeMemory( m_device, m_colorImageMemory, nullptr );
 
     vkDestroyImageView( m_device, m_depthImageView, nullptr );
     vkDestroyImage( m_device, m_depthImage, nullptr );
@@ -1312,7 +1343,7 @@ namespace fn {
             .count();
 
     glm::vec cameraPos = m_camera->position();
-    float cameraSpeed = 0.02f;
+    float cameraSpeed = 0.0015f;
 
     if ( m_iomanager->isKeyPressed( GLFW_KEY_W ) )
       cameraPos += cameraSpeed * m_camera->front();
@@ -1452,7 +1483,7 @@ namespace fn {
     // Create the Texture Image
 
     createImage( static_cast<uint32_t>( texWidth ), static_cast<uint32_t>( texHeight ), m_mipLevels,
-                 VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+                 VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
                  VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
                      VK_IMAGE_USAGE_SAMPLED_BIT,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_textureImage, m_textureImageMemory );
@@ -1475,7 +1506,8 @@ namespace fn {
   }
 
   void VulkanBase::createImage( uint32_t width, uint32_t height, uint32_t mipLevels,
-                                VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
+                                VkSampleCountFlagBits numSample, VkFormat format,
+                                VkImageTiling tiling, VkImageUsageFlags usage,
                                 VkMemoryPropertyFlags properties, VkImage &image,
                                 VkDeviceMemory &imageMemory ) noexcept {
     //@TODO: (stel) make this function static, it doesn't affect any members
@@ -1491,7 +1523,7 @@ namespace fn {
     imageInfo.tiling = tiling;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     imageInfo.usage = usage;
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.samples = numSample;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     VK_CHECK_RESULT( vkCreateImage( m_device, &imageInfo, nullptr, &image ) );
@@ -1558,9 +1590,7 @@ namespace fn {
     // these two fields should be the indices of the queue families
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-
     barrier.image = image;
-
 
     if ( newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ) {
       barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -1572,7 +1602,6 @@ namespace fn {
       barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     }
 
-
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = mipLevels;
     barrier.subresourceRange.baseArrayLayer = 0;
@@ -1583,30 +1612,41 @@ namespace fn {
 
     if ( oldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
          newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL ) {
+
       barrier.srcAccessMask = 0;
       barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
       sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
       destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
     } else if ( oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
                 newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL ) {
+
       barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
       barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
       sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
       destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
     } else if ( oldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
                 newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ) {
+
       barrier.srcAccessMask = 0;
       barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
                               VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
       sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
       destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+
+    } else if ( oldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
+                newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL ) {
+
+      barrier.srcAccessMask = 0;
+      barrier.dstAccessMask =
+          VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+      sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+      destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
     } else {
       log::fatal( "unsupported layout transition!" );
     }
-
 
     vkCmdPipelineBarrier( commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr,
                           1, &barrier );
@@ -1700,7 +1740,7 @@ namespace fn {
     samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
     samplerInfo.mipLodBias = 0.0f;
     samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = static_cast<float>(m_mipLevels);
+    samplerInfo.maxLod = static_cast<float>( m_mipLevels );
 
     VK_CHECK_RESULT( vkCreateSampler( m_device, &samplerInfo, nullptr, &m_textureSampler ) );
   }
@@ -1708,7 +1748,7 @@ namespace fn {
   void VulkanBase::createDepthResources() noexcept {
 
     VkFormat depthFormat = findDepthFormat();
-    createImage( m_swapChainExtent.width, m_swapChainExtent.height, 1, depthFormat,
+    createImage( m_swapChainExtent.width, m_swapChainExtent.height, 1, m_msaaSamples, depthFormat,
                  VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_depthImage, m_depthImageMemory );
 
@@ -1790,15 +1830,16 @@ namespace fn {
     }
   }
 
-  void VulkanBase::generateMipMaps( VkImage image,VkFormat imageFormat, int32_t texWidth, int32_t texHeight,
-                                    uint32_t mipLevels ) noexcept {
+  void VulkanBase::generateMipMaps( VkImage image, VkFormat imageFormat, int32_t texWidth,
+                                    int32_t texHeight, uint32_t mipLevels ) noexcept {
 
 
     // Check if image format supports linear blitting
     VkFormatProperties formatProperties;
-    vkGetPhysicalDeviceFormatProperties(m_physicalDevice, imageFormat, &formatProperties);
+    vkGetPhysicalDeviceFormatProperties( m_physicalDevice, imageFormat, &formatProperties );
 
-    FN_ASSERT((formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)); 
+    FN_ASSERT( ( formatProperties.optimalTilingFeatures &
+                 VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT ) );
 
     VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
@@ -1874,5 +1915,47 @@ namespace fn {
     endSingleTimeCommands( commandBuffer );
   }
 
+  VkSampleCountFlagBits VulkanBase::getMaxUsableSampleCount() noexcept {
+    VkPhysicalDeviceProperties physicalDeviceProperties;
+    vkGetPhysicalDeviceProperties( m_physicalDevice, &physicalDeviceProperties );
+
+    VkSampleCountFlags counts =
+        std::min( physicalDeviceProperties.limits.framebufferColorSampleCounts,
+                  physicalDeviceProperties.limits.framebufferDepthSampleCounts );
+    if ( counts & VK_SAMPLE_COUNT_64_BIT ) {
+      return VK_SAMPLE_COUNT_64_BIT;
+    }
+    if ( counts & VK_SAMPLE_COUNT_32_BIT ) {
+      return VK_SAMPLE_COUNT_32_BIT;
+    }
+    if ( counts & VK_SAMPLE_COUNT_16_BIT ) {
+      return VK_SAMPLE_COUNT_16_BIT;
+    }
+    if ( counts & VK_SAMPLE_COUNT_8_BIT ) {
+      return VK_SAMPLE_COUNT_8_BIT;
+    }
+    if ( counts & VK_SAMPLE_COUNT_4_BIT ) {
+      return VK_SAMPLE_COUNT_4_BIT;
+    }
+    if ( counts & VK_SAMPLE_COUNT_2_BIT ) {
+      return VK_SAMPLE_COUNT_2_BIT;
+    }
+
+    return VK_SAMPLE_COUNT_1_BIT;
+  }
+
+  void VulkanBase::createColorResources() noexcept {
+
+    VkFormat colorFormat = m_swapChainImageFormat;
+
+    createImage( m_swapChainExtent.width, m_swapChainExtent.height, 1, m_msaaSamples, colorFormat,
+                 VK_IMAGE_TILING_OPTIMAL,
+                 VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_colorImage, m_colorImageMemory );
+    m_colorImageView = createImageView( m_colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1 );
+
+    transitionImageLayout( m_colorImage, colorFormat, VK_IMAGE_LAYOUT_UNDEFINED,
+                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1 );
+  }
 
 }    // namespace fn
