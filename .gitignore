@@ -40,3 +40,9 @@ cmake-build-debug/
 #editors / IDE's
 .idea
 .vs
+
+todo.txt
+tags
+notes.wiki
+compile_commands.json
+

@@ -3,12 +3,12 @@
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/bf7a73f977ab49a7845f0a4a1ff5a3fb)](https://app.codacy.com/app/stelro/cpp-boilerplate?utm_source=github.com&utm_medium=referral&utm_content=stelro/cpp-boilerplate&utm_campaign=Badge_Grade_Dashboard)
 [![license](https://img.shields.io/badge/license-Unlicense-blue.svg)](https://github.com/stelro/cpp-boilerplate/blob/master/LICENSE)
 
-====
+---
 This is experimental ( and for educational/personal purposes ) renderer/s ( Vulkan and OpenGL ).
 Implemented by following various tutorials and books, trying various rendering / graphics
 techniques, but also game engine programming methods.
 
-====
+---
 #### Used resources :
 * Vulkan Tutorial - [Vulkan Tutorial](https://vulkan-tutorial.com)
 * Learn OpenGL - [Learn OpenGL](https://learnopengl.com)
